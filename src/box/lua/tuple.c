@@ -96,37 +96,54 @@ luaT_istuple(struct lua_State *L, int narg)
 struct tuple *
 luaT_tuple_new(struct lua_State *L, int idx, box_tuple_format_t *format)
 {
-	if (idx != 0 && !lua_istable(L, idx) && !luaT_istuple(L, idx)) {
+	struct tuple *tuple;
+
+	if (idx == 0 || lua_istable(L, idx)) {
+		struct ibuf *buf = tarantool_lua_ibuf;
+		ibuf_reset(buf);
+		struct mpstream stream;
+		mpstream_init(&stream, buf, ibuf_reserve_cb, ibuf_alloc_cb,
+			      luamp_error, L);
+		if (idx == 0) {
+			/*
+			 * Create the tuple from lua stack
+			 * objects.
+			 */
+			int argc = lua_gettop(L);
+			mpstream_encode_array(&stream, argc);
+			for (int k = 1; k <= argc; ++k) {
+				luamp_encode(L, luaL_msgpack_default, &stream,
+					     k);
+			}
+		} else {
+			/* Create the tuple from a Lua table. */
+			luamp_encode_tuple(L, &tuple_serializer, &stream, idx);
+		}
+		mpstream_flush(&stream);
+		tuple = box_tuple_new(format, buf->buf,
+				      buf->buf + ibuf_used(buf));
+		if (tuple == NULL)
+			return NULL;
+		ibuf_reinit(tarantool_lua_ibuf);
+		return tuple;
+	}
+
+	tuple = luaT_istuple(L, idx);
+	if (tuple == NULL) {
 		diag_set(IllegalParams, "A tuple or a table expected, got %s",
 			 lua_typename(L, lua_type(L, idx)));
 		return NULL;
 	}
 
-	struct ibuf *buf = tarantool_lua_ibuf;
-	ibuf_reset(buf);
-	struct mpstream stream;
-	mpstream_init(&stream, buf, ibuf_reserve_cb, ibuf_alloc_cb,
-		      luamp_error, L);
-	if (idx == 0) {
-		/*
-		 * Create the tuple from lua stack
-		 * objects.
-		 */
-		int argc = lua_gettop(L);
-		mpstream_encode_array(&stream, argc);
-		for (int k = 1; k <= argc; ++k) {
-			luamp_encode(L, luaL_msgpack_default, &stream, k);
-		}
-	} else {
-		/* Create the tuple from a Lua table. */
-		luamp_encode_tuple(L, &tuple_serializer, &stream, idx);
-	}
-	mpstream_flush(&stream);
-	struct tuple *tuple = box_tuple_new(format, buf->buf,
-					    buf->buf + ibuf_used(buf));
+	/*
+	 * Create a new tuple with the necessary format from
+	 * another tuple.
+	 */
+	const char *tuple_beg = tuple_data(tuple);
+	const char *tuple_end = tuple_beg + tuple->bsize;
+	tuple = box_tuple_new(format, tuple_beg, tuple_end);
 	if (tuple == NULL)
 		return NULL;
-	ibuf_reinit(tarantool_lua_ibuf);
 	return tuple;
 }
 
