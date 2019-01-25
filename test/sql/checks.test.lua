@@ -8,41 +8,42 @@ box.sql.execute('pragma sql_default_engine=\''..engine..'\'')
 -- gh-3272: Move SQL CHECK into server
 --
 
--- invalid expression
-opts = {checks = {{expr = 'X><5'}}}
-format = {{name = 'X', type = 'unsigned'}}
-t = {513, 1, 'test', 'memtx', 0, opts, format}
-s = box.space._space:insert(t)
-
+-- Legacy data in _space (insertion on bootrap) test.
 opts = {checks = {{expr = 'X>5'}}}
 format = {{name = 'X', type = 'unsigned'}}
 t = {513, 1, 'test', 'memtx', 0, opts, format}
 s = box.space._space:insert(t)
-box.space._space:delete(513)
+box.space.test:create_index('pk')
 
-opts = {checks = {{expr = 'X>5', name = 'ONE'}}}
-format = {{name = 'X', type = 'unsigned'}}
-t = {513, 1, 'test', 'memtx', 0, opts, format}
-s = box.space._space:insert(t)
-box.space._space:delete(513)
+-- Invalid expression test.
+box.space._ck_constraint:insert({'CK_CONSTRAINT_01', 513, 'X><5'})
+-- Unexistent space test.
+box.space._ck_constraint:insert({'CK_CONSTRAINT_01', 550, 'X<5'})
+-- Field type test.
+box.space._ck_constraint:insert({'CK_CONSTRAINT_01', 550, 666})
 
--- extra invlalid field name
-opts = {checks = {{expr = 'X>5', name = 'ONE', extra = 'TWO'}}}
-format = {{name = 'X', type = 'unsigned'}}
-t = {513, 1, 'test', 'memtx', 0, opts, format}
-s = box.space._space:insert(t)
+-- Check constraints LUA creation test.
+box.space._ck_constraint:insert({'CK_CONSTRAINT_01', 513, 'X<5'})
+box.space._ck_constraint:count({})
 
-opts = {checks = {{expr_invalid_label = 'X>5'}}}
-format = {{name = 'X', type = 'unsigned'}}
-t = {513, 1, 'test', 'memtx', 0, opts, format}
-s = box.space._space:insert(t)
+box.sql.execute("INSERT INTO \"test\" VALUES(5);")
+box.space._ck_constraint:replace({'CK_CONSTRAINT_01', 513, 'X<=5'})
+box.sql.execute("INSERT INTO \"test\" VALUES(5);")
+box.sql.execute("INSERT INTO \"test\" VALUES(6);")
+-- Can't drop table with check constraints.
+box.space.test:delete({5})
+box.space.test.index.pk:drop()
+box.space._space:delete({513})
+box.space._ck_constraint:delete({'CK_CONSTRAINT_01', 513})
+box.space.test:drop()
 
--- invalid field type
-opts = {checks = {{name = 123}}}
-format = {{name = 'X', type = 'unsigned'}}
-t = {513, 1, 'test', 'memtx', 0, opts, format}
-s = box.space._space:insert(t)
-
+-- Create table with checks in sql.
+box.sql.execute("CREATE TABLE t1(x INTEGER CONSTRAINT ONE CHECK( x<5 ), y REAL CONSTRAINT TWO CHECK( y>x ), z INTEGER PRIMARY KEY);")
+box.space._ck_constraint:count()
+box.sql.execute("INSERT INTO t1 VALUES (7, 1, 1)")
+box.sql.execute("INSERT INTO t1 VALUES (2, 1, 1)")
+box.sql.execute("INSERT INTO t1 VALUES (2, 4, 1)")
+box.sql.execute("DROP TABLE t1")
 
 --
 -- gh-3611: Segfault on table creation with check referencing this table
@@ -54,11 +55,5 @@ box.sql.execute("DROP TABLE w2;")
 -- gh-3653: Dissallow bindings for DDL
 --
 box.sql.execute("CREATE TABLE t5(x INT PRIMARY KEY, y INT, CHECK( x*y < ? ));")
-
-opts = {checks = {{expr = '?>5', name = 'ONE'}}}
-format = {{name = 'X', type = 'unsigned'}}
-t = {513, 1, 'test', 'memtx', 0, opts, format}
-s = box.space._space:insert(t)
-
 
 test_run:cmd("clear filter")

@@ -615,7 +615,7 @@ test:do_catchsql_test(
 --   catchsql {
 --     INSERT INTO t5 VALUES(4);
 --   }
--- } {1 {CHECK constraint failed: t5}}
+-- } {1 {Check constraint failed: t5}}
 -- Ticket #1821
 --
 -- Type affinity applied to the right-hand side of an IN operator.

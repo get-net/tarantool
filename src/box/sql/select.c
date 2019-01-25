@@ -6422,7 +6422,5 @@ sql_expr_extract_select(struct Parse *parser, struct Select *select)
 	struct ExprList *expr_list = select->pEList;
 	assert(expr_list->nExpr == 1);
 	parser->parsed_ast_type = AST_TYPE_EXPR;
-	parser->parsed_ast.expr = sqlExprDup(parser->db,
-						 expr_list->a->pExpr,
-						 EXPRDUP_REDUCE);
+	parser->parsed_ast.expr = sqlExprDup(parser->db, expr_list->a->pExpr, 0);
 }

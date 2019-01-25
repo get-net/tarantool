@@ -240,6 +240,9 @@ struct errcode_record {
 	/*185 */_(ER_SQL_UNKNOWN_TOKEN,		"Syntax error: unrecognized token: '%.*s'") \
 	/*186 */_(ER_SQL_PARSER_GENERIC,	"%s") \
 	/*187 */_(ER_SQL_ANALYZE_ARGUMENT,	"ANALYZE statement argument %s is not a base table") \
+	/*188 */_(ER_CREATE_CK_CONSTRAINT,	"Failed to create check constraint '%s': %s") \
+	/*189 */_(ER_CK_CONSTRAINT_FAILED,	"Check constraint failed: %s") \
+
 
 /*
  * !IMPORTANT! Please follow instructions at start of the file

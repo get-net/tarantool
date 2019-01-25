@@ -516,6 +516,8 @@ t;
   185: box.error.SQL_UNKNOWN_TOKEN
   186: box.error.SQL_PARSER_GENERIC
   187: box.error.SQL_ANALYZE_ARGUMENT
+  188: box.error.CREATE_CK_CONSTRAINT
+  189: box.error.CK_CONSTRAINT_FAILED
 ...
 test_run:cmd("setopt delimiter ''");
 ---

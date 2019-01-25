@@ -290,6 +290,7 @@ sql_parser_create(struct Parse *parser, sql *db)
 	memset(parser, 0, sizeof(struct Parse));
 	parser->db = db;
 	rlist_create(&parser->new_fk_constraint);
+	rlist_create(&parser->new_ck_constraint);
 	rlist_create(&parser->record_list);
 	region_create(&parser->region, &cord()->slabc);
 }

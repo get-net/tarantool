@@ -823,6 +823,8 @@ box.space._space:select()
       {'name': 'is_deferred', 'type': 'boolean'}, {'name': 'match', 'type': 'string'},
       {'name': 'on_delete', 'type': 'string'}, {'name': 'on_update', 'type': 'string'},
       {'name': 'child_cols', 'type': 'array'}, {'name': 'parent_cols', 'type': 'array'}]]
+  - [357, 1, '_ck_constraint', 'memtx', 0, {}, [{'name': 'name', 'type': 'string'},
+      {'name': 'space_id', 'type': 'unsigned'}, {'name': 'expr_str', 'type': 'str'}]]
 ...
 box.space._func:select()
 ---

@@ -115,6 +115,7 @@ add_library(box STATIC
     applier.cc
     relay.cc
     journal.c
+    ck_constraint.c
     sql.c
     execute.c
     wal.c

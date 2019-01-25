@@ -195,6 +195,11 @@ struct space {
 	struct rlist parent_fk_constraint;
 	struct rlist child_fk_constraint;
 	/**
+	 * List of check constaints linked with
+	 * ck_constraint::link.
+	 */
+	struct rlist ck_constraint;
+	/**
 	 * Mask indicates which fields are involved in foreign
 	 * key constraint checking routine. Includes fields
 	 * of parent constraints as well as child ones.

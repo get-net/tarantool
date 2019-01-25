@@ -1221,7 +1221,7 @@ test:do_catchsql_test(
         INSERT INTO T21 VALUES(1, -1, 1);
     ]], {
         -- <table-21.3>
-        1, "CHECK constraint failed: T21"
+        1, "Check constraint failed: CK_CONSTRAINT_1_T21"
         -- </table-21.3>
     })
 
@@ -1231,7 +1231,7 @@ test:do_catchsql_test(
         INSERT INTO T21 VALUES(1, 1, -1);
     ]], {
         -- <table-21.4>
-        1, "CHECK constraint failed: T21"
+        1, "Check constraint failed: CK_CONSTRAINT_2_T21"
         -- </table-21.4>
     })
 
@@ -1372,7 +1372,7 @@ test:do_catchsql_test(
         INSERT INTO T28 VALUES(0);
     ]], {
         -- <table-22.10>
-        1, "CHECK constraint failed: CHECK1"
+        1, "Check constraint failed: CHECK1"
         -- </table-22.10>
     })
 
@@ -1382,7 +1382,7 @@ test:do_catchsql_test(
         INSERT INTO T28 VALUES(9);
     ]], {
         -- <table-22.11>
-        1, "CHECK constraint failed: CHECK2"
+        1, "Check constraint failed: CHECK2"
         -- </table-22.11>
     })
 

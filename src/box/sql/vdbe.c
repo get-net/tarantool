@@ -1028,7 +1028,7 @@ case OP_HaltIfNull: {      /* in3 */
  *    0:  (no change)
  *    1:  NOT NULL contraint failed: P4
  *    2:  UNIQUE constraint failed: P4
- *    3:  CHECK constraint failed: P4
+ *    3:  Check constraint failed: P4
  *    4:  FOREIGN KEY constraint failed: P4
  *
  * If P5 is not zero and  P4 is  NULL, then everything after the
@@ -1077,8 +1077,8 @@ case OP_Halt: {
 					      pOp->p4.z);
 			}
 		} else if (pOp->p5 != 0) {
-			static const char * const azType[] = { "NOT NULL", "UNIQUE", "CHECK",
-							       "FOREIGN KEY" };
+			static const char * const azType[] =
+				{"NOT NULL", "UNIQUE", "Check", "FOREIGN KEY" };
 			testcase( pOp->p5==1);
 			testcase( pOp->p5==2);
 			testcase( pOp->p5==3);

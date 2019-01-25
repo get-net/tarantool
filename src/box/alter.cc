@@ -29,6 +29,7 @@
  * SUCH DAMAGE.
  */
 #include "alter.h"
+#include "ck_constraint.h"
 #include "schema.h"
 #include "user.h"
 #include "space.h"
@@ -528,17 +529,6 @@ space_def_new_from_tuple(struct tuple *tuple, uint32_t errcode,
 				 engine_name, engine_name_len, &opts, fields,
 				 field_count);
 	auto def_guard = make_scoped_guard([=] { space_def_delete(def); });
-	if (def->opts.checks != NULL &&
-	    sql_checks_resolve_space_def_reference(def->opts.checks,
-						   def) != 0) {
-		box_error_t *err = box_error_last();
-		if (box_error_code(err) != ENOMEM) {
-			tnt_raise(ClientError, errcode, def->name,
-				  box_error_message(err));
-		} else {
-			diag_raise();
-		}
-	}
 	struct engine *engine = engine_find_xc(def->engine_name);
 	engine_check_space_def_xc(engine, def);
 	def_guard.is_active = false;
@@ -1350,6 +1340,62 @@ TruncateIndex::commit(struct alter_space *alter, int64_t signature)
 }
 
 /**
+ * Due to the fact that ck_constraint object depends on
+ * space_def we must rebuild all ck constraints on space alter.
+ * To make it transactionally, we prepare a list of new objects
+ * in ::prepare method that is fault-tolerant. Later in ::alter or
+ * ::rollback methods we only securely swap the lists.
+ */
+class BuildCkConstraints: public AlterSpaceOp
+{
+public:
+	BuildCkConstraints(struct alter_space *alter)
+		: AlterSpaceOp(alter),
+		ck_constraint(RLIST_HEAD_INITIALIZER(ck_constraint)) {}
+	struct rlist ck_constraint;
+	virtual void prepare(struct alter_space *alter);
+	virtual void alter(struct alter_space *alter);
+	virtual void rollback(struct alter_space *alter);
+	virtual ~BuildCkConstraints();
+};
+
+void
+BuildCkConstraints::prepare(struct alter_space *alter)
+{
+	struct ck_constraint *old_ck_constraint;
+	rlist_foreach_entry(old_ck_constraint, &alter->old_space->ck_constraint,
+			    link) {
+		struct ck_constraint *new_ck_constraint =
+			ck_constraint_new(old_ck_constraint->def,
+					  alter->new_space->def);
+		if (new_ck_constraint == NULL)
+			diag_raise();
+		rlist_add_entry(&ck_constraint, new_ck_constraint, link);
+	}
+}
+
+void
+BuildCkConstraints::alter(struct alter_space *alter)
+{
+	rlist_swap(&alter->new_space->ck_constraint, &ck_constraint);
+	rlist_swap(&ck_constraint, &alter->old_space->ck_constraint);
+}
+
+void
+BuildCkConstraints::rollback(struct alter_space *alter)
+{
+	rlist_swap(&alter->old_space->ck_constraint, &ck_constraint);
+	rlist_swap(&ck_constraint, &alter->new_space->ck_constraint);
+}
+
+BuildCkConstraints::~BuildCkConstraints()
+{
+	struct ck_constraint *old_ck_constraint, *tmp;
+	rlist_foreach_entry_safe(old_ck_constraint, &ck_constraint, link, tmp)
+		ck_constraint_delete(old_ck_constraint);
+}
+
+/**
  * UpdateSchemaVersion - increment schema_version. Used on
  * in alter_space_do(), i.e. when creating or dropping
  * an index, altering a space.
@@ -1749,6 +1795,12 @@ on_replace_dd_space(struct trigger * /* trigger */, void *event)
 				  space_name(old_space),
 				  "the space has foreign key constraints");
 		}
+		/* Can't drop space having check constraints. */
+		if (!rlist_empty(&old_space->ck_constraint)) {
+			tnt_raise(ClientError, ER_DROP_SPACE,
+				  space_name(old_space),
+				  "the space has check constraints");
+		}
 		/**
 		 * The space must be deleted from the space
 		 * cache right away to achieve linearisable
@@ -1846,6 +1898,8 @@ on_replace_dd_space(struct trigger * /* trigger */, void *event)
 						     def->field_count);
 		(void) new CheckSpaceFormat(alter);
 		(void) new ModifySpace(alter, def);
+		/* Add an op to rebuild check constraints. */
+		(void) new BuildCkConstraints(alter);
 		def_guard.is_active = false;
 		/* Create MoveIndex ops for all space indexes. */
 		alter_space_move_indexes(alter, 0, old_space->index_id_max + 1);
@@ -2088,6 +2142,7 @@ on_replace_dd_index(struct trigger * /* trigger */, void *event)
 	 * old space.
 	 */
 	alter_space_move_indexes(alter, iid + 1, old_space->index_id_max + 1);
+	(void) new BuildCkConstraints(alter);
 	/* Add an op to update schema_version on commit. */
 	(void) new UpdateSchemaVersion(alter);
 	alter_space_do(txn, alter);
@@ -2155,7 +2210,7 @@ on_replace_dd_truncate(struct trigger * /* trigger */, void *event)
 		struct index *old_index = old_space->index[i];
 		(void) new TruncateIndex(alter, old_index->def->iid);
 	}
-
+	(void) new BuildCkConstraints(alter);
 	alter_space_do(txn, alter);
 	scoped_guard.is_active = false;
 }
@@ -4064,6 +4119,145 @@ on_replace_dd_fk_constraint(struct trigger * /* trigger*/, void *event)
 	}
 }
 
+/**
+ * Create an instance of check constraint definition from tuple
+ * on region.
+ */
+static struct ck_constraint_def *
+ck_constraint_def_decode(const struct tuple *tuple, struct region *region)
+{
+	uint32_t name_len;
+	const char *name =
+		tuple_field_str_xc(tuple, BOX_CK_CONSTRAINT_FIELD_NAME,
+				   &name_len);
+	if (name_len > BOX_NAME_MAX) {
+		tnt_raise(ClientError, ER_CREATE_CK_CONSTRAINT,
+			  tt_cstr(name, BOX_INVALID_NAME_MAX),
+				  "check constraint name is too long");
+	}
+	identifier_check_xc(name, name_len);
+	uint32_t expr_str_len;
+	const char *expr_str =
+		tuple_field_str_xc(tuple, BOX_CK_CONSTRAINT_FIELD_EXPR_STR,
+				   &expr_str_len);
+	uint32_t name_offset, expr_str_offset;
+	uint32_t sz = ck_constraint_def_sizeof(name_len, expr_str_len,
+					       &name_offset, &expr_str_offset);
+	struct ck_constraint_def *ck_constraint_def =
+		(struct ck_constraint_def *)region_alloc_xc(region, sz);
+	ck_constraint_def_create(ck_constraint_def, name, name_len, expr_str,
+				 expr_str_len);
+	return ck_constraint_def;
+}
+
+/** Trigger invoked on rollback in the _ck_constraint space. */
+static void
+on_replace_ck_constraint_rollback(struct trigger *trigger, void *event)
+{
+	struct txn_stmt *stmt = txn_last_stmt((struct txn*) event);
+	struct ck_constraint *ck_constraint =
+		(struct ck_constraint *)trigger->data;
+	struct space *space = NULL;
+	if (ck_constraint != NULL)
+		space = space_by_id(ck_constraint->space_id);
+	if (stmt->old_tuple != NULL && stmt->new_tuple == NULL) {
+		/* Rollback DELETE check constraint. */
+		if (ck_constraint == NULL)
+			return;
+		assert(space != NULL);
+		rlist_add_entry(&space->ck_constraint, ck_constraint, link);
+	}  else if (stmt->new_tuple != NULL && stmt->old_tuple == NULL) {
+		/* Rollback INSERT check constraint. */
+		assert(space != NULL);
+		rlist_del_entry(ck_constraint, link);
+		ck_constraint_delete(ck_constraint);
+	} else {
+		/* Rollback REPLACE check constraint. */
+		assert(space != NULL);
+		const char *space_name = ck_constraint->def->name;
+		struct ck_constraint *new_ck_constraint =
+			space_ck_constraint_by_name(space, space_name,
+						    strlen(space_name));
+		assert(new_ck_constraint != NULL);
+		rlist_del_entry(new_ck_constraint, link);
+		rlist_add_entry(&space->ck_constraint, ck_constraint, link);
+		ck_constraint_delete(new_ck_constraint);
+	}
+}
+
+/**
+ * Trigger invoked on commit in the _ck_constraint space.
+ * Drop useless old check constraint object if exists.
+ */
+static void
+on_replace_ck_constraint_commit(struct trigger *trigger, void * /* event */)
+{
+	struct ck_constraint *old_ck_constraint =
+		(struct ck_constraint *)trigger->data;
+	if (old_ck_constraint != NULL)
+		ck_constraint_delete(old_ck_constraint);
+	++schema_version;
+}
+
+/** A trigger invoked on replace in the _ck_constraint space. */
+static void
+on_replace_dd_ck_constraint(struct trigger * /* trigger*/, void *event)
+{
+	struct txn *txn = (struct txn *) event;
+	txn_check_singlestatement_xc(txn, "Space _ck_constraint");
+	struct txn_stmt *stmt = txn_current_stmt(txn);
+	struct tuple *old_tuple = stmt->old_tuple;
+	struct tuple *new_tuple = stmt->new_tuple;
+	uint32_t space_id =
+		tuple_field_u32_xc(old_tuple != NULL ? old_tuple : new_tuple,
+				   BOX_CK_CONSTRAINT_FIELD_SPACE_ID);
+	struct space *space = space_cache_find_xc(space_id);
+	access_check_ddl(space->def->name, space->def->id, space->def->uid,
+			 SC_SPACE, PRIV_A);
+
+	struct trigger *on_rollback =
+		txn_alter_trigger_new(on_replace_ck_constraint_rollback, NULL);
+	struct trigger *on_commit =
+		txn_alter_trigger_new(on_replace_ck_constraint_commit, NULL);
+
+	if (new_tuple != NULL) {
+		/* Create or replace check constraint. */
+		struct ck_constraint_def *ck_constraint_def =
+			ck_constraint_def_decode(new_tuple, &fiber()->gc);
+		struct ck_constraint *new_ck_constraint =
+			ck_constraint_new(ck_constraint_def, space->def);
+		if (new_ck_constraint == NULL)
+			diag_raise();
+		const char *space_name = new_ck_constraint->def->name;
+		struct ck_constraint *old_ck_constraint =
+			space_ck_constraint_by_name(space, space_name,
+						    strlen(space_name));
+		if (old_ck_constraint != NULL)
+			rlist_del_entry(old_ck_constraint, link);
+		rlist_add_entry(&space->ck_constraint, new_ck_constraint, link);
+		on_commit->data = old_ck_constraint;
+		on_rollback->data = old_tuple == NULL ? new_ck_constraint :
+							old_ck_constraint;
+	} else {
+		assert(new_tuple == NULL && old_tuple != NULL);
+		/* Drop check constraint. */
+		uint32_t name_len;
+		const char *name =
+			tuple_field_str_xc(old_tuple,
+					   BOX_CK_CONSTRAINT_FIELD_NAME,
+					   &name_len);
+		struct ck_constraint *old_ck_constraint =
+			space_ck_constraint_by_name(space, name, name_len);
+		assert(old_ck_constraint != NULL);
+		rlist_del_entry(old_ck_constraint, link);
+		on_commit->data = old_ck_constraint;
+		on_rollback->data = old_ck_constraint;
+	}
+
+	txn_on_rollback(txn, on_rollback);
+	txn_on_commit(txn, on_commit);
+}
+
 struct trigger alter_space_on_replace_space = {
 	RLIST_LINK_INITIALIZER, on_replace_dd_space, NULL, NULL
 };
@@ -4130,6 +4324,10 @@ struct trigger on_replace_trigger = {
 
 struct trigger on_replace_fk_constraint = {
 	RLIST_LINK_INITIALIZER, on_replace_dd_fk_constraint, NULL, NULL
+};
+
+struct trigger on_replace_ck_constraint = {
+	RLIST_LINK_INITIALIZER, on_replace_dd_ck_constraint, NULL, NULL
 };
 
 /* vim: set foldmethod=marker */

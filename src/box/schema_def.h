@@ -111,6 +111,8 @@ enum {
 	BOX_SQL_STAT4_ID = 349,
 	/** Space id of _fk_constraint. */
 	BOX_FK_CONSTRAINT_ID = 356,
+	/** Space id of _ck_contraint. */
+	BOX_CK_CONSTRAINT_ID = 357,
 	/** End of the reserved range of system spaces. */
 	BOX_SYSTEM_ID_MAX = 511,
 	BOX_ID_NIL = 2147483647
@@ -239,6 +241,13 @@ enum {
 	BOX_FK_CONSTRAINT_FIELD_ON_UPDATE = 6,
 	BOX_FK_CONSTRAINT_FIELD_CHILD_COLS = 7,
 	BOX_FK_CONSTRAINT_FIELD_PARENT_COLS = 8,
+};
+
+/** _ck_constraint fields. */
+enum {
+	BOX_CK_CONSTRAINT_FIELD_NAME = 0,
+	BOX_CK_CONSTRAINT_FIELD_SPACE_ID = 1,
+	BOX_CK_CONSTRAINT_FIELD_EXPR_STR = 2,
 };
 
 /*
