@@ -3514,6 +3514,11 @@ on_replace_dd_trigger(struct trigger * /* trigger */, void *event)
 		uint32_t space_id =
 			tuple_field_u32_xc(old_tuple,
 					   BOX_TRIGGER_FIELD_SPACE_ID);
+		struct space *space = space_by_id(space_id);
+		assert(space != NULL);
+		access_check_ddl(space->def->name, space->def->id,
+				 space->def->uid, SC_SPACE, PRIV_A);
+
 		char *trigger_name =
 			(char *)region_alloc_xc(&fiber()->gc,
 						trigger_name_len + 1);
@@ -3567,6 +3572,10 @@ on_replace_dd_trigger(struct trigger * /* trigger */, void *event)
 				  "trigger space_id does not match the value "
 				  "resolved on AST building from SQL");
 		}
+		struct space *space = space_by_id(space_id);
+		assert(space != NULL);
+		access_check_ddl(space->def->name, space->def->id,
+				 space->def->uid, SC_SPACE, PRIV_A);
 
 		struct sql_trigger *old_trigger;
 		if (sql_trigger_replace(trigger_name,
@@ -3897,6 +3906,8 @@ on_replace_dd_fk_constraint(struct trigger * /* trigger*/, void *event)
 				  fk_def->name,
 				  "referencing space can't be VIEW");
 		}
+		access_check_ddl(child_space->def->name, child_space->def->id,
+				 child_space->def->uid, SC_SPACE, PRIV_A);
 		struct space *parent_space =
 			space_cache_find_xc(fk_def->parent_id);
 		if (parent_space->def->opts.is_view) {
@@ -3904,6 +3915,8 @@ on_replace_dd_fk_constraint(struct trigger * /* trigger*/, void *event)
 				  fk_def->name,
 				  "referenced space can't be VIEW");
 		}
+		access_check_ddl(parent_space->def->name, parent_space->def->id,
+				 parent_space->def->uid, SC_SPACE, PRIV_A);
 		/*
 		 * FIXME: until SQL triggers are completely
 		 * integrated into server (i.e. we are able to
@@ -4031,6 +4044,10 @@ on_replace_dd_fk_constraint(struct trigger * /* trigger*/, void *event)
 			space_cache_find_xc(fk_def->child_id);
 		struct space *parent_space =
 			space_cache_find_xc(fk_def->parent_id);
+		access_check_ddl(child_space->def->name, child_space->def->id,
+				 child_space->def->uid, SC_SPACE, PRIV_A);
+		access_check_ddl(parent_space->def->name, parent_space->def->id,
+				 parent_space->def->uid, SC_SPACE, PRIV_A);
 		struct fk_constraint *old_fk=
 			fk_constraint_remove(&child_space->child_fk_constraint,
 					     fk_def->name);

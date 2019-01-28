@@ -1435,3 +1435,15 @@ test_run:wait_log('default', 'readahead limit is reached', 1024, 0.1)
 
 s:drop()
 box.cfg{readahead = readahead}
+
+-- Test alter privilege for space that is modified by insertion in
+-- _trigger, _ck_constraint space.
+box.sql.execute("CREATE TABLE t5(x  INT primary key, y INT, CHECK( x + y < 2 ));")
+box.sql.execute("CREATE TRIGGER tr1 AFTER DELETE ON t5 BEGIN DELETE FROM t5; END;")
+box.schema.user.grant('guest','create,read,write','universe')
+c = net.connect(box.cfg.listen)
+c.space._trigger:replace({'TR1', box.space.T5.id, {sql='CREATE TRIGGER tr1 AFTER DELETE ON t5 BEGIN DELETE FROM t5; END;'}})
+c:execute('CREATE TABLE t6(x INT PRIMARY KEY REFERENCES t5 ON DELETE RESTRICT);')
+c:close()
+box.schema.user.revoke('guest','create,read,write','universe')
+box.space.T5:drop()
