@@ -61,21 +61,6 @@ struct sql_response {
 };
 
 /**
- * Parse MessagePack array of SQL parameters.
- * @param data MessagePack array of parameters. Each parameter
- *        either must have scalar type, or must be a map with the
- *        following format: {name: value}. Name - string name of
- *        the named parameter, value - scalar value of the
- *        parameter. Named and positioned parameters can be mixed.
- * @param[out] out_bind Pointer to save decoded parameters.
- *
- * @retval  >= 0 Number of decoded parameters.
- * @retval -1 Client or memory error.
- */
-int
-sql_bind_list_decode(const char *data, struct sql_bind **out_bind);
-
-/**
  * Dump a built response into @an out buffer. The response is
  * destroyed.
  * Response structure:

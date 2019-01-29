@@ -117,6 +117,7 @@ add_library(box STATIC
     journal.c
     ck_constraint.c
     sql.c
+    bind.c
     execute.c
     wal.c
     call.c
