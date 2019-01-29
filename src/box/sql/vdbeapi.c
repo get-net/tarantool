@@ -132,14 +132,6 @@ sql_finalize(sql_stmt * pStmt)
 	return rc;
 }
 
-/*
- * Terminate the current execution of an SQL statement and reset it
- * back to its starting state so that it can be reused. A success code from
- * the prior execution is returned.
- *
- * This routine sets the error code and string returned by
- * sql_errcode(), sql_errmsg() and sql_errmsg16().
- */
 int
 sql_reset(sql_stmt * pStmt)
 {

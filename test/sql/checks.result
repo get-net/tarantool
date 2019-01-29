@@ -71,6 +71,10 @@ box.sql.execute("INSERT INTO \"test\" VALUES(5);")
 ---
 - error: 'Check constraint failed: CK_CONSTRAINT_01'
 ...
+box.space.test:insert({5})
+---
+- error: 'Check constraint failed: CK_CONSTRAINT_01'
+...
 box.space._ck_constraint:replace({'CK_CONSTRAINT_01', 513, 'X<=5'})
 ---
 - ['CK_CONSTRAINT_01', 513, 'X<=5']
@@ -79,6 +83,10 @@ box.sql.execute("INSERT INTO \"test\" VALUES(5);")
 ---
 ...
 box.sql.execute("INSERT INTO \"test\" VALUES(6);")
+---
+- error: 'Check constraint failed: CK_CONSTRAINT_01'
+...
+box.space.test:insert({6})
 ---
 - error: 'Check constraint failed: CK_CONSTRAINT_01'
 ...
@@ -113,12 +121,24 @@ box.sql.execute("INSERT INTO t1 VALUES (7, 1, 1)")
 ---
 - error: 'Check constraint failed: ONE'
 ...
+box.space.T1:insert({7, 1, 1})
+---
+- error: 'Check constraint failed: ONE'
+...
 box.sql.execute("INSERT INTO t1 VALUES (2, 1, 1)")
+---
+- error: 'Check constraint failed: TWO'
+...
+box.space.T1:insert({2, 1, 1})
 ---
 - error: 'Check constraint failed: TWO'
 ...
 box.sql.execute("INSERT INTO t1 VALUES (2, 4, 1)")
 ---
+...
+box.space.T1:update({1}, {{'+', 1, 5}})
+---
+- error: 'Check constraint failed: ONE'
 ...
 box.sql.execute("DROP TABLE t1")
 ---

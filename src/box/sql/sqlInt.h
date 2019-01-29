@@ -592,6 +592,17 @@ sql_column_value(sql_stmt *,
 int
 sql_finalize(sql_stmt * pStmt);
 
+/*
+ * Terminate the current execution of an SQL statement and reset
+ * it back to its starting state so that it can be reused.
+ *
+ * @param stmt VDBE program, may be NULL.
+ * @retval SQL_OK On success.
+ * @retval sql_ret_code Error code on error.
+ */
+int
+sql_reset(struct sql_stmt *stmt);
+
 int
 sql_exec(sql *,	/* An open database */
 	     const char *sql,	/* SQL to be evaluated */
@@ -3827,6 +3838,20 @@ vdbe_emit_constraint_checks(struct Parse *parse_context,
 			    enum on_conflict_action on_conflict,
 			    int ignore_label, int *upd_cols);
 
+/**
+ * Gnerate code to make check constraints tests on tuple insertion
+ * on INSERT, REPLACE or UPDATE operations.
+ * @param parser Current parsing context.
+ * @param expr Check constraint AST.
+ * @param name Check constraint name to raise error.
+ * @param new_tuple_reg The first ck_constraint::stmt VDBE
+ *                      register of the range
+ *                      space_def::field_count representing a
+ *                      new tuple to be inserted.
+ */
+void
+vdbe_emit_ck_constraint(struct Parse *parser, struct Expr *expr,
+			const char *name, int new_tuple_reg);
 /**
  * This routine generates code to finish the INSERT or UPDATE
  * operation that was started by a prior call to

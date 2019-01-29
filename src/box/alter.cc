@@ -1379,6 +1379,11 @@ BuildCkConstraints::alter(struct alter_space *alter)
 {
 	rlist_swap(&alter->new_space->ck_constraint, &ck_constraint);
 	rlist_swap(&ck_constraint, &alter->old_space->ck_constraint);
+	struct ck_constraint *ck;
+	rlist_foreach_entry(ck, &ck_constraint, link)
+		trigger_clear(&ck->trigger);
+	rlist_foreach_entry(ck, &alter->new_space->ck_constraint, link)
+		trigger_add(&alter->new_space->before_replace, &ck->trigger);
 }
 
 void
@@ -1386,6 +1391,11 @@ BuildCkConstraints::rollback(struct alter_space *alter)
 {
 	rlist_swap(&alter->old_space->ck_constraint, &ck_constraint);
 	rlist_swap(&ck_constraint, &alter->new_space->ck_constraint);
+	struct ck_constraint *ck;
+	rlist_foreach_entry(ck, &ck_constraint, link)
+		trigger_clear(&ck->trigger);
+	rlist_foreach_entry(ck, &alter->old_space->ck_constraint, link)
+		trigger_add(&alter->old_space->before_replace, &ck->trigger);
 }
 
 BuildCkConstraints::~BuildCkConstraints()
@@ -4166,10 +4176,12 @@ on_replace_ck_constraint_rollback(struct trigger *trigger, void *event)
 			return;
 		assert(space != NULL);
 		rlist_add_entry(&space->ck_constraint, ck_constraint, link);
+		trigger_add(&space->before_replace, &ck_constraint->trigger);
 	}  else if (stmt->new_tuple != NULL && stmt->old_tuple == NULL) {
 		/* Rollback INSERT check constraint. */
 		assert(space != NULL);
 		rlist_del_entry(ck_constraint, link);
+		trigger_clear(&ck_constraint->trigger);
 		ck_constraint_delete(ck_constraint);
 	} else {
 		/* Rollback REPLACE check constraint. */
@@ -4180,7 +4192,9 @@ on_replace_ck_constraint_rollback(struct trigger *trigger, void *event)
 						    strlen(space_name));
 		assert(new_ck_constraint != NULL);
 		rlist_del_entry(new_ck_constraint, link);
+		trigger_clear(&new_ck_constraint->trigger);
 		rlist_add_entry(&space->ck_constraint, ck_constraint, link);
+		trigger_add(&space->before_replace, &ck_constraint->trigger);
 		ck_constraint_delete(new_ck_constraint);
 	}
 }
@@ -4232,9 +4246,13 @@ on_replace_dd_ck_constraint(struct trigger * /* trigger*/, void *event)
 		struct ck_constraint *old_ck_constraint =
 			space_ck_constraint_by_name(space, space_name,
 						    strlen(space_name));
-		if (old_ck_constraint != NULL)
+		if (old_ck_constraint != NULL) {
 			rlist_del_entry(old_ck_constraint, link);
+			trigger_clear(&old_ck_constraint->trigger);
+		}
 		rlist_add_entry(&space->ck_constraint, new_ck_constraint, link);
+		trigger_add(&space->before_replace,
+			    &new_ck_constraint->trigger);
 		on_commit->data = old_ck_constraint;
 		on_rollback->data = old_tuple == NULL ? new_ck_constraint :
 							old_ck_constraint;
@@ -4250,6 +4268,7 @@ on_replace_dd_ck_constraint(struct trigger * /* trigger*/, void *event)
 			space_ck_constraint_by_name(space, name, name_len);
 		assert(old_ck_constraint != NULL);
 		rlist_del_entry(old_ck_constraint, link);
+		trigger_clear(&old_ck_constraint->trigger);
 		on_commit->data = old_ck_constraint;
 		on_rollback->data = old_ck_constraint;
 	}

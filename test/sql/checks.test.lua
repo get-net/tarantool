@@ -27,9 +27,11 @@ box.space._ck_constraint:insert({'CK_CONSTRAINT_01', 513, 'X<5'})
 box.space._ck_constraint:count({})
 
 box.sql.execute("INSERT INTO \"test\" VALUES(5);")
+box.space.test:insert({5})
 box.space._ck_constraint:replace({'CK_CONSTRAINT_01', 513, 'X<=5'})
 box.sql.execute("INSERT INTO \"test\" VALUES(5);")
 box.sql.execute("INSERT INTO \"test\" VALUES(6);")
+box.space.test:insert({6})
 -- Can't drop table with check constraints.
 box.space.test:delete({5})
 box.space.test.index.pk:drop()
@@ -41,8 +43,11 @@ box.space.test:drop()
 box.sql.execute("CREATE TABLE t1(x INTEGER CONSTRAINT ONE CHECK( x<5 ), y REAL CONSTRAINT TWO CHECK( y>x ), z INTEGER PRIMARY KEY);")
 box.space._ck_constraint:count()
 box.sql.execute("INSERT INTO t1 VALUES (7, 1, 1)")
+box.space.T1:insert({7, 1, 1})
 box.sql.execute("INSERT INTO t1 VALUES (2, 1, 1)")
+box.space.T1:insert({2, 1, 1})
 box.sql.execute("INSERT INTO t1 VALUES (2, 4, 1)")
+box.space.T1:update({1}, {{'+', 1, 5}})
 box.sql.execute("DROP TABLE t1")
 
 --

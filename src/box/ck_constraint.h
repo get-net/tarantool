@@ -32,6 +32,7 @@
  */
 
 #include <stdint.h>
+#include "trigger.h"
 #include "small/rlist.h"
 
 #if defined(__cplusplus)
@@ -40,6 +41,7 @@ extern "C" {
 
 struct space;
 struct space_def;
+struct sql_stmt;
 struct Expr;
 
 /**
@@ -72,17 +74,29 @@ struct ck_constraint {
 	 */
 	struct ck_constraint_def *def;
 	/**
-	 * The check constraint expression AST is built for
-	 * ck_constraint::def::expr_str with sql_expr_compile
-	 * and resolved with sqlResolveExprNames for
-	 * space with space[ck_constraint::space_id] definition.
+	 * Precompiled reusable VDBE program for proceeding ck
+	 * constraint checks and setting bad exitcode and error
+	 * message when ck condition unsatisfied.
+	 * Program rely on new_tuple_var parameter to be binded
+	 * in the VDBE memory before run.
 	 */
-	struct Expr *expr;
+	struct sql_stmt *stmt;
 	/**
 	 * The id of the space this check constraint is
 	 * built for.
 	 */
 	uint32_t space_id;
+	/**
+	 * The first ck_constraint::stmt VDBE variable of the
+	 * range space[ck_constraint::space_id]->def->field_count
+	 * representing a new tuple to be inserted.
+	 */
+	int new_tuple_var;
+	/**
+	 * Trigger object executing check constraint on space
+	 * insert and replace.
+	 */
+	struct trigger trigger;
 	/**
 	 * Organize check constraint structs into linked list
 	 * with space::ck_constraint.

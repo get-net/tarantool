@@ -29,6 +29,7 @@
  * SUCH DAMAGE.
  */
 #include <assert.h>
+#include "bind.h"
 #include "field_def.h"
 #include "cfg.h"
 #include "sql.h"
