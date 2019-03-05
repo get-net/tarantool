@@ -2666,7 +2666,7 @@ c.space.test.index.sk.parts
 ---
 - - type: string
     is_nullable: false
-    collation_id: 4
+    collation: test
     fieldno: 1
 ...
 c:close()
