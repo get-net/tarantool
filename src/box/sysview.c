@@ -402,6 +402,15 @@ vsequence_filter(struct space *source, struct tuple *tuple)
 	       ((PRIV_WRDA | PRIV_X) & effective);
 }
 
+static bool
+vcollation_filter(struct space *source, struct tuple *tuple)
+{
+	(void) source;
+	(void) tuple;
+
+	return true;
+}
+
 static struct index *
 sysview_space_create_index(struct space *space, struct index_def *def)
 {
@@ -427,6 +436,11 @@ sysview_space_create_index(struct space *space, struct index_def *def)
 		source_space_id = BOX_INDEX_ID;
 		source_index_id = def->iid;
 		filter = vspace_filter;
+		break;
+	case BOX_VCOLLATION_ID:
+		source_space_id = BOX_COLLATION_ID;
+		source_index_id = def->iid;
+		filter = vcollation_filter;
 		break;
 	case BOX_VUSER_ID:
 		source_space_id = BOX_USER_ID;

@@ -256,6 +256,7 @@ struct entity_access {
        struct access user[BOX_USER_MAX];
        struct access role[BOX_USER_MAX];
        struct access sequence[BOX_USER_MAX];
+       struct access collation[BOX_USER_MAX];
 };
 
 /** A single instance of the global entities. */
@@ -281,6 +282,9 @@ entity_access_get(enum schema_object_type type)
 	case SC_SEQUENCE:
 	case SC_ENTITY_SEQUENCE:
 		return entity_access.sequence;
+	case SC_COLLATION:
+	case SC_ENTITY_COLLATION:
+		return entity_access.collation;
 	default:
 		return NULL;
 	}
