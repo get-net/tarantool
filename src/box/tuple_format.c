@@ -195,6 +195,50 @@ tuple_format_field_by_id(struct tuple_format *format, uint32_t id)
 }
 
 /**
+ * Check if child_field may be attached to parent_field,
+ * update the parent_field container type if required.
+ */
+static int
+tuple_format_field_update_type(struct tuple_field *parent_field,
+			       struct tuple_field *child_field)
+{
+	enum field_type expected_type =
+		child_field->token.type == JSON_TOKEN_STR ?
+		FIELD_TYPE_MAP : FIELD_TYPE_ARRAY;
+	if (child_field->token.type == JSON_TOKEN_ANY &&
+	    !json_token_is_multikey(&parent_field->token) &&
+	    !json_token_is_leaf(&parent_field->token)) {
+		assert(expected_type == FIELD_TYPE_ARRAY);
+		diag_set(ClientError, ER_INDEX_MULTIKEY_INVALID,
+			 tt_sprintf("field %s is already refer to document by "
+				    "identifier and cannot use array index "
+				    "placeholder [*]",
+				    tuple_field_path(parent_field)));
+		return -1;
+	}
+	if (json_token_is_multikey(&parent_field->token) &&
+		child_field->token.type != JSON_TOKEN_ANY) {
+		assert(expected_type == FIELD_TYPE_ARRAY);
+		diag_set(ClientError, ER_INDEX_MULTIKEY_INVALID,
+			 tt_sprintf("field %s is already used with array index "
+				    "placeholder [*] and cannot refer to "
+				    "document by identifier",
+				    tuple_field_path(parent_field)));
+		return -1;
+	}
+	if (field_type1_contains_type2(parent_field->type, expected_type)) {
+		parent_field->type = expected_type;
+	} else {
+		diag_set(ClientError, ER_INDEX_PART_TYPE_MISMATCH,
+			 tuple_field_path(parent_field),
+			 field_type_strs[parent_field->type],
+			 field_type_strs[expected_type]);
+		return -1;
+	}
+	return 0;
+}
+
+/**
  * Given a field number and a path, add the corresponding field
  * to the tuple format, allocating intermediate fields if
  * necessary.
@@ -228,29 +272,16 @@ tuple_format_add_field(struct tuple_format *format, uint32_t fieldno,
 	*path_pool += path_len;
 
 	int rc = 0;
-	uint32_t token_count = 0;
+	uint32_t token_count = 0, json_token_any_count = 0;
 	struct json_tree *tree = &format->fields;
 	struct json_lexer lexer;
 	json_lexer_create(&lexer, path, path_len, TUPLE_INDEX_BASE);
 	while ((rc = json_lexer_next_token(&lexer, &field->token)) == 0 &&
 	       field->token.type != JSON_TOKEN_END) {
-		if (field->token.type == JSON_TOKEN_ANY) {
-			diag_set(ClientError, ER_UNSUPPORTED,
-				"Tarantool", "multikey indexes");
+		if (tuple_format_field_update_type(parent, field) != 0)
 			goto fail;
-		}
-		enum field_type expected_type =
-			field->token.type == JSON_TOKEN_STR ?
-			FIELD_TYPE_MAP : FIELD_TYPE_ARRAY;
-		if (field_type1_contains_type2(parent->type, expected_type)) {
-			parent->type = expected_type;
-		} else {
-			diag_set(ClientError, ER_INDEX_PART_TYPE_MISMATCH,
-				 tuple_field_path(parent),
-				 field_type_strs[parent->type],
-				 field_type_strs[expected_type]);
-			goto fail;
-		}
+		if (field->token.type == JSON_TOKEN_ANY)
+			json_token_any_count++;
 		struct tuple_field *next =
 			json_tree_lookup_entry(tree, &parent->token,
 					       &field->token,
@@ -268,6 +299,18 @@ tuple_format_add_field(struct tuple_format *format, uint32_t fieldno,
 			if (field == NULL)
 				goto fail;
 		}
+		if (json_token_is_multikey(&parent->token) &&
+		    parent->offset_slot == TUPLE_OFFSET_SLOT_NIL) {
+			/**
+			 * Allocate offset slot for array is used
+			 * in multikey index. This is required to
+			 * quickly extract its size.
+			 * @see tuple_field_multikey_items()
+			 */
+			assert(parent->type == FIELD_TYPE_ARRAY);
+			*current_slot = *current_slot - 1;
+			parent->offset_slot = *current_slot;
+		}
 		parent->is_key_part = true;
 		parent = next;
 		token_count++;
@@ -280,6 +323,13 @@ tuple_format_add_field(struct tuple_format *format, uint32_t fieldno,
 	assert(parent != NULL);
 	/* Update tree depth information. */
 	format->fields_depth = MAX(format->fields_depth, token_count + 1);
+	if (json_token_any_count > 1) {
+		assert(path_len > 0);
+		diag_set(ClientError, ER_INDEX_MULTIKEY_INVALID,
+			 "no more than one array index placeholder [*] is "
+			 "allowed in JSON path");
+		goto fail;
+	}
 cleanup:
 	tuple_field_delete(field);
 end:
@@ -842,7 +892,16 @@ tuple_field_map_create(struct tuple_format *format, const char *tuple,
 			return -1;
 		}
 		/* Initialize field_map with data offset. */
-		if (field->offset_slot != TUPLE_OFFSET_SLOT_NIL) {
+		int multikey_idx = it.multikey_frame != NULL ?
+				   it.multikey_frame->idx : -1;
+		if (field->offset_slot != TUPLE_OFFSET_SLOT_NIL &&
+		    multikey_idx >= 0) {
+			if (field_map_builder_set_extent_slot(builder,
+					field->offset_slot, multikey_idx,
+					it.multikey_frame->count,
+					pos - tuple) != 0)
+				return -1;
+		} else if (field->offset_slot != TUPLE_OFFSET_SLOT_NIL) {
 			field_map_builder_set_slot(builder, field->offset_slot,
 						   pos - tuple);
 		}
@@ -950,6 +1009,7 @@ tuple_format_iterator_create(struct tuple_format_iterator *it,
 	it->parent = &format->fields.root;
 	it->format = format;
 	it->pos = field;
+	it->multikey_frame = NULL;
 	if (field_count == 0) {
 		mp_stack_create(&it->stack, 0, NULL);
 		return 0;
@@ -989,6 +1049,14 @@ tuple_format_iterator_advice(struct tuple_format_iterator *it,
 		if (mp_stack_is_empty(&it->stack))
 			return false;
 		frame = mp_stack_top(&it->stack);
+		if (json_token_is_multikey(it->parent)) {
+			/*
+			 * As we leave the multikey branch,
+			 * we need to reset the pointer to
+			 * multikey_frame.
+			 */
+			it->multikey_frame = NULL;
+		}
 		it->parent = it->parent->parent;
 	}
 	/*
@@ -1039,6 +1107,19 @@ tuple_format_iterator_advice(struct tuple_format_iterator *it,
 				mp_decode_array(&it->pos) :
 				mp_decode_map(&it->pos);
 		mp_stack_push(&it->stack, type, size);
+		if (json_token_is_multikey(&(*field)->token)) {
+			/**
+			 * Keep a pointer to the frame that
+			 * describes an array with index
+			 * placeholder [*]. The "current" item
+			 * of this frame matches the logical
+			 * index of document in multikey index
+			 * and is equal to multikey index
+			 * comparison hint.
+			 */
+			assert(type == MP_ARRAY);
+			it->multikey_frame = mp_stack_top(&it->stack);
+		}
 		it->parent = &(*field)->token;
 	} else {
 		mp_next(&it->pos);

@@ -30,6 +30,29 @@ key_def_contains_sequential_parts(const struct key_def *def)
 	return false;
 }
 
+static inline char *
+tuple_extract_key_stub(struct tuple *tuple, struct key_def *key_def,
+		       uint32_t *key_size)
+{
+	(void) tuple;
+	(void) key_def;
+	(void) key_size;
+	unreachable();
+	return NULL;
+}
+
+static char *
+tuple_extract_key_raw_stub(const char *data, const char *data_end,
+			   struct key_def *key_def, uint32_t *key_size)
+{
+	(void) data;
+	(void) data_end;
+	(void) key_def;
+	(void) key_size;
+	unreachable();
+	return NULL;
+}
+
 /**
  * Optimized version of tuple_extract_key_raw() for sequential key defs
  * @copydoc tuple_extract_key_raw()
@@ -310,7 +333,7 @@ tuple_extract_key_slowpath_raw(const char *data, const char *data_end,
 		const char *src_end = field_end;
 		if (has_json_paths && part->path != NULL) {
 			if (tuple_go_to_path(&src, part->path,
-						   part->path_len) != 0) {
+					     part->path_len, -1) != 0) {
 				/*
 				 * The path must be correct as
 				 * it has already been validated
@@ -349,6 +372,7 @@ static void
 key_def_set_extract_func_plain(struct key_def *def)
 {
 	assert(!def->has_json_paths);
+	assert(!key_def_is_multikey(def));
 	if (key_def_is_sequential(def)) {
 		assert(contains_sequential_parts || def->part_count == 1);
 		def->tuple_extract_key = tuple_extract_key_sequential
@@ -369,11 +393,16 @@ static void
 key_def_set_extract_func_json(struct key_def *def)
 {
 	assert(def->has_json_paths);
-	def->tuple_extract_key = tuple_extract_key_slowpath
-					<contains_sequential_parts,
-					 has_optional_parts, true>;
-	def->tuple_extract_key_raw = tuple_extract_key_slowpath_raw
-					<has_optional_parts, true>;
+	if (!key_def_is_multikey(def)) {
+		def->tuple_extract_key = tuple_extract_key_slowpath
+						<contains_sequential_parts,
+						has_optional_parts, true>;
+		def->tuple_extract_key_raw = tuple_extract_key_slowpath_raw
+						<has_optional_parts, true>;
+	} else {
+		def->tuple_extract_key = tuple_extract_key_stub;
+		def->tuple_extract_key_raw = tuple_extract_key_raw_stub;
+	}
 }
 
 void

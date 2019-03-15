@@ -170,7 +170,9 @@ struct tuple_format {
 	 */
 	bool is_ephemeral;
 	/**
-	 * Size of field map of tuple in bytes.
+	 * Size of minimal field map of tuple where each indexed
+	 * field has own offset slot (in bytes). The real tuple
+	 * field_map may be bigger in case of multikey indexes.
 	 * \sa struct field_map_builder
 	 */
 	uint16_t field_map_size;
@@ -433,6 +435,12 @@ struct tuple_format_iterator {
 	 * pointer accordingly.
 	 */
 	struct mp_stack stack;
+	/**
+	 * The pointer to the stack frame representing an array
+	 * filed that has JSON_TOKEN_ANY child, i.e. the root
+	 * of the multikey index.
+	 */
+	struct mp_frame *multikey_frame;
 	/** The current read position in msgpack. */
 	const char *pos;
 };

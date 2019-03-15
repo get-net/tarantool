@@ -138,7 +138,57 @@ key_def_set_func(struct key_def *def)
 	key_def_set_extract_func(def);
 }
 
-static void
+static int
+key_def_set_part_path(struct key_def *def, uint32_t part_no, const char *path,
+		      uint32_t path_len, char **path_pool)
+{
+	struct key_part *part = &def->parts[part_no];
+	if (path == NULL) {
+		part->path = NULL;
+		part->path_len = 0;
+		return 0;
+	}
+	assert(path_pool != NULL);
+	part->path = *path_pool;
+	*path_pool += path_len;
+	memcpy(part->path, path, path_len);
+	part->path_len = path_len;
+
+	/*
+	 * Test whether this key_part has array index
+	 * placeholder [*] (i.e. is a part of multikey index
+	 * definition).
+	 */
+	int multikey_path_len =
+		json_path_multikey_offset(path, path_len, TUPLE_INDEX_BASE);
+	if ((uint32_t)multikey_path_len == path_len)
+		return 0;
+
+	/*
+	 * In case of multikey index key_parts must have the
+	 * same JSON prefix.
+	 */
+	if (!key_def_is_multikey(def)) {
+		/*
+		 * Keep the index of the first multikey key_part
+		 * and the length of JSON path substring to the
+		 * array index placeholder sign [*].
+		 */
+		def->multikey_path = part->path;
+		def->multikey_fieldno = part->fieldno;
+		def->multikey_path_len = (uint32_t)multikey_path_len;
+	} else if (json_path_cmp(path, multikey_path_len, def->multikey_path,
+				 def->multikey_path_len,
+				 TUPLE_INDEX_BASE) != 0) {
+		diag_set(ClientError, ER_WRONG_INDEX_OPTIONS,
+			 part_no + TUPLE_INDEX_BASE,
+			 "incompatable multikey index path");
+		return -1;
+	}
+	return 0;
+}
+
+static int
 key_def_set_part(struct key_def *def, uint32_t part_no, uint32_t fieldno,
 		 enum field_type type, enum on_conflict_action nullable_action,
 		 struct coll *coll, uint32_t coll_id,
@@ -158,17 +208,8 @@ key_def_set_part(struct key_def *def, uint32_t part_no, uint32_t fieldno,
 	def->parts[part_no].sort_order = sort_order;
 	def->parts[part_no].offset_slot_cache = offset_slot;
 	def->parts[part_no].format_epoch = format_epoch;
-	if (path != NULL) {
-		assert(path_pool != NULL);
-		def->parts[part_no].path = *path_pool;
-		*path_pool += path_len;
-		memcpy(def->parts[part_no].path, path, path_len);
-		def->parts[part_no].path_len = path_len;
-	} else {
-		def->parts[part_no].path = NULL;
-		def->parts[part_no].path_len = 0;
-	}
 	column_mask_set_fieldno(&def->column_mask, fieldno);
+	return key_def_set_part_path(def, part_no, path, path_len, path_pool);
 }
 
 struct key_def *
@@ -203,10 +244,14 @@ key_def_new(const struct key_part_def *parts, uint32_t part_count)
 			coll = coll_id->coll;
 		}
 		uint32_t path_len = part->path != NULL ? strlen(part->path) : 0;
-		key_def_set_part(def, i, part->fieldno, part->type,
-				 part->nullable_action, coll, part->coll_id,
-				 part->sort_order, part->path, path_len,
-				 &path_pool, TUPLE_OFFSET_SLOT_NIL, 0);
+		if (key_def_set_part(def, i, part->fieldno, part->type,
+				     part->nullable_action, coll, part->coll_id,
+				     part->sort_order, part->path, path_len,
+				     &path_pool, TUPLE_OFFSET_SLOT_NIL,
+				     0) != 0) {
+			key_def_delete(def);
+			return NULL;
+		}
 	}
 	assert(path_pool == (char *)def + sz);
 	key_def_set_func(def);
@@ -256,11 +301,12 @@ box_key_def_new(uint32_t *fields, uint32_t *types, uint32_t part_count)
 	key_def->unique_part_count = part_count;
 
 	for (uint32_t item = 0; item < part_count; ++item) {
-		key_def_set_part(key_def, item, fields[item],
-				 (enum field_type)types[item],
-				 ON_CONFLICT_ACTION_DEFAULT,
-				 NULL, COLL_NONE, SORT_ORDER_ASC, NULL, 0,
-				 NULL, TUPLE_OFFSET_SLOT_NIL, 0);
+		if (key_def_set_part(key_def, item, fields[item],
+				     (enum field_type)types[item],
+				     ON_CONFLICT_ACTION_DEFAULT, NULL,
+				     COLL_NONE, SORT_ORDER_ASC, NULL, 0, NULL,
+				     TUPLE_OFFSET_SLOT_NIL, 0) != 0)
+			unreachable();
 	}
 	key_def_set_func(key_def);
 	return key_def;
@@ -685,11 +731,13 @@ key_def_merge(const struct key_def *first, const struct key_def *second)
 	part = first->parts;
 	end = part + first->part_count;
 	for (; part != end; part++) {
-		key_def_set_part(new_def, pos++, part->fieldno, part->type,
-				 part->nullable_action, part->coll,
-				 part->coll_id, part->sort_order, part->path,
-				 part->path_len, &path_pool,
-				 part->offset_slot_cache, part->format_epoch);
+		if (key_def_set_part(new_def, pos++, part->fieldno, part->type,
+				     part->nullable_action, part->coll,
+				     part->coll_id, part->sort_order,
+				     part->path, part->path_len, &path_pool,
+				     part->offset_slot_cache,
+				     part->format_epoch) != 0)
+			unreachable();
 	}
 
 	/* Set-append second key def's part to the new key def. */
@@ -698,11 +746,15 @@ key_def_merge(const struct key_def *first, const struct key_def *second)
 	for (; part != end; part++) {
 		if (!key_def_can_merge(first, part))
 			continue;
-		key_def_set_part(new_def, pos++, part->fieldno, part->type,
-				 part->nullable_action, part->coll,
-				 part->coll_id, part->sort_order, part->path,
-				 part->path_len, &path_pool,
-				 part->offset_slot_cache, part->format_epoch);
+		if (key_def_set_part(new_def, pos++, part->fieldno, part->type,
+				     part->nullable_action, part->coll,
+				     part->coll_id, part->sort_order,
+				     part->path, part->path_len, &path_pool,
+				     part->offset_slot_cache,
+				     part->format_epoch) != 0) {
+			key_def_delete(new_def);
+			return NULL;
+		}
 	}
 	assert(path_pool == (char *)new_def + sz);
 	key_def_set_func(new_def);

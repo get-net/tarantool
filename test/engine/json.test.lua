@@ -201,10 +201,3 @@ idx0 = s:create_index('idx0', {parts = {{2, 'str', path = 'name'}, {3, "str"}}})
 s:insert({4, {"d", name='D'}, "test"})
 s:replace({4, {"d1", name='D1'}, "test"})
 s:drop()
-
---
--- gh-1260: Multikey indexes
---
-s = box.schema.space.create('withdata')
-idx = s:create_index('idx', {parts = {{3, 'str', path = '[*].fname'}, {3, 'str', path = '[*].sname'}}})
-s:drop()

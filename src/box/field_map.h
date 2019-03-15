@@ -34,6 +34,7 @@
 #include <stdint.h>
 
 struct region;
+struct field_map_builder_slot;
 
 /**
  * A field map is a special area is reserved before tuple's
@@ -46,13 +47,15 @@ struct region;
  * offset_slot(s) is performed on tuple_format creation on index
  * create or alter (see tuple_format_create()).
  *
- *              4b          4b       MessagePack data.
- *           +------+----+------+---------------------------+
- *    tuple: | offN | .. | off1 | header ..|key1|..|keyN|.. |
- *           +--+---+----+--+---+---------------------------+
- *           |     ...    |                 ^       ^
- *           |            +-----------------+       |
- *           +--------------------------------------+
+ *        4b   4b      4b          4b       MessagePack data.
+ *       +-----------+------+----+------+------------------------+
+ *tuple: |cnt|off1|..| offN | .. | off1 | header ..|key1|..|keyN||
+ *       +-----+-----+--+---+----+--+---+------------------------+
+ * ext1  ^     |        |   ...     |                 ^       ^
+ *       +-----|--------+           |                 |       |
+ * indirection |                    +-----------------+       |
+ *             +----------------------------------------------+
+ *             (offset_slot = N, extent_slot = 1) --> offset
  *
  * This field_map_builder class is used for tuple field_map
  * construction. It encapsulates field_map build logic and size
@@ -60,19 +63,88 @@ struct region;
  *
  * Each field offset is a positive number, except the case when
  * a field is not in the tuple. In this case offset is 0.
+ *
+ * Some slots may store an offset of the field_map_ext structure,
+ * which contains an additional sequence of offsets of size
+ * defined above(see field_map_ext layout). The caller needs to
+ * be aware of when the slot is an offset of the data and when
+ * it is the offset of the field_map_ext.
+ *
+ * Now these extents are used to organize a multikey index.
+ * The count of keys in the multikey index imposes the count of
+ * items in extent while the i-th extent's slot contains the
+ * offset of the i-th key field.
  */
 struct field_map_builder {
 	/**
-	 * The pointer to the end of filed_map allocation.
+	 * The pointer to the end of field_map_builder_slot(s)
+	 * allocation.
 	 * Its elements are accessible by negative indexes
 	 * that coinciding with offset_slot(s).
 	 */
-	uint32_t *slots;
+	struct field_map_builder_slot *slots;
 	/**
 	 * The count of slots in field_map_builder::slots
 	 * allocation.
 	 */
 	uint32_t slot_count;
+	/**
+	 * Total size of memory is allocated for field_map
+	 * extentions.
+	 */
+	uint32_t extents_size;
+	/**
+	 * Region to use to perform memory allocations.
+	 */
+	struct region *region;
+};
+
+/**
+ * Internal stucture representing field_map extent.
+ * (see field_map_builder description).
+ */
+struct field_map_ext {
+	/** Count of field_map_ext::offset[] elements. */
+	uint32_t items;
+	/** Data offset in tuple array. */
+	uint32_t offset[0];
+};
+
+/**
+ * Internal function to get or allocate field map extent
+ * by offset_slot, and count of items.
+ */
+struct field_map_ext *
+field_map_builder_ext_get(struct field_map_builder *builder,
+			  int32_t offset_slot, uint32_t extent_items);
+
+/**
+ * Instead of using uint32_t offset slots directly the
+ * field_map_builder uses this structure as a storage atom.
+ * When there is a need to initialize an extent, the
+ * field_map_builder allocates a new memory chunk and sets
+ * field_map_builder_slot::pointer (instead of real field_map
+ * reallocation).
+ *
+ * On field_map_build, all of the extents are dumped to the same
+ * memory chunk that the regular field_map slots and corresponding
+ * slots represent relative field_map_ext offset instead of
+ * field data offset.
+ *
+ * The allocated memory is accounted for in extents_size.
+ */
+struct field_map_builder_slot {
+	/**
+	 * True when this slot must be interpret as
+	 * extention pointer.
+	 */
+	bool has_extent;
+	union {
+		/** Data offset in tuple. */
+		uint32_t offset;
+		/** Pointer to field_map_ext extention. */
+		struct field_map_ext *extent;
+	};
 };
 
 /**
@@ -82,9 +154,22 @@ struct field_map_builder {
  * When a field is not in the data tuple, its offset is 0.
  */
 static inline uint32_t
-field_map_get_offset(const uint32_t *field_map, int32_t offset_slot)
+field_map_get_offset(const uint32_t *field_map, int32_t offset_slot,
+		     int multikey_idx)
 {
-	return field_map[offset_slot];
+	uint32_t offset;
+	if (multikey_idx >= 0) {
+		assert(field_map[offset_slot] != 0);
+		struct field_map_ext *extent =
+			(struct field_map_ext *)((char *)field_map -
+						 field_map[offset_slot]);
+		if ((uint32_t)multikey_idx >= extent->items)
+			return 0;
+		offset = extent->offset[multikey_idx];
+	} else {
+		offset = field_map[offset_slot];
+	}
+	return offset;
 }
 
 /**
@@ -117,7 +202,32 @@ field_map_builder_set_slot(struct field_map_builder *builder,
 	assert(offset_slot < 0);
 	assert((uint32_t)-offset_slot <= builder->slot_count);
 	assert(offset > 0);
-	builder->slots[offset_slot] = offset;
+	builder->slots[offset_slot].offset = offset;
+}
+
+/**
+ * Set data offset in field map extent (by given offset_slot,
+ * extent_slot and extent_items) for a field identified by
+ * unique offset_slot.
+ *
+ * The offset_slot argument must be negative and offset must be
+ * positive (by definition).
+ */
+static inline int
+field_map_builder_set_extent_slot(struct field_map_builder *builder,
+				  int32_t offset_slot, int32_t extent_slot,
+				  uint32_t extent_items, uint32_t offset)
+{
+	assert(offset_slot < 0);
+	assert(offset > 0);
+	assert(extent_slot >= 0 && extent_items > 0);
+	struct field_map_ext *extent =
+		field_map_builder_ext_get(builder, offset_slot, extent_items);
+	if (extent == NULL)
+		return -1;
+	assert(extent->items == extent_items);
+	extent->offset[extent_slot] = offset;
+	return 0;
 }
 
 /**
@@ -126,7 +236,8 @@ field_map_builder_set_slot(struct field_map_builder *builder,
 static inline uint32_t
 field_map_build_size(struct field_map_builder *builder)
 {
-	return builder->slot_count * sizeof(uint32_t);
+	return builder->slot_count * sizeof(uint32_t) +
+	       builder->extents_size;
 }
 
 /**

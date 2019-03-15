@@ -699,6 +699,11 @@ vinyl_space_check_index_def(struct space *space, struct index_def *index_def)
 			return -1;
 		}
 	}
+	if (key_def_is_multikey(index_def->key_def)) {
+		diag_set(ClientError, ER_UNSUPPORTED,
+			 "Vinyl", "multikey indexes");
+		return -1;
+	}
 	return 0;
 }
 
