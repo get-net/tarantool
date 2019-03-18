@@ -770,29 +770,19 @@ tuple_format1_can_store_format2_tuples(struct tuple_format *format1,
 /** @sa declaration for details. */
 int
 tuple_field_map_create(struct tuple_format *format, const char *tuple,
-		       bool validate, uint32_t **field_map,
-		       uint32_t *field_map_size)
+		       bool validate, struct field_map_builder *builder)
 {
-	if (tuple_format_field_count(format) == 0) {
-		*field_map = NULL;
-		*field_map_size = 0;
-		return 0; /* Nothing to initialize */
-	}
 	struct region *region = &fiber()->gc;
-	*field_map_size = format->field_map_size;
-	*field_map = region_alloc(region, *field_map_size);
-	if (*field_map == NULL) {
-		diag_set(OutOfMemory, *field_map_size, "region_alloc",
-			 "field_map");
+	if (field_map_builder_create(builder, format->field_map_size,
+				     region) != 0)
 		return -1;
-	}
-	*field_map = (uint32_t *)((char *)*field_map + *field_map_size);
+	if (tuple_format_field_count(format) == 0)
+		return 0; /* Nothing to initialize */
 
 	const char *pos = tuple;
-	int rc = 0;
 	struct tuple_format_iterator it;
 	if (tuple_format_iterator_create(&it, format, tuple, region) != 0)
-		goto error;
+		return -1;
 
 	/* Check to see if the tuple has a sufficient number of fields. */
 	uint32_t field_count = !mp_stack_is_empty(&it.stack) ?
@@ -802,7 +792,7 @@ tuple_field_map_create(struct tuple_format *format, const char *tuple,
 		diag_set(ClientError, ER_EXACT_FIELD_COUNT,
 			 (unsigned) field_count,
 			 (unsigned) format->exact_field_count);
-		goto error;
+		return -1;
 	}
 	/*
 	 * Allocate a field bitmap that will be used for checking
@@ -816,7 +806,7 @@ tuple_field_map_create(struct tuple_format *format, const char *tuple,
 		if (required_fields == NULL) {
 			diag_set(OutOfMemory, required_fields_sz,
 				 "region", "required field bitmap");
-			goto error;
+			return -1;
 		}
 		memcpy(required_fields, format->required_fields,
 		       required_fields_sz);
@@ -833,11 +823,6 @@ tuple_field_map_create(struct tuple_format *format, const char *tuple,
 					   format->index_field_count);
 	tuple_format_iterator_limit(&it, defined_field_count);
 
-	/*
-	 * Nullify field map to be able to detect by 0,
-	 * which key fields are absent in tuple_field().
-	 */
-	memset((char *)*field_map - *field_map_size, 0, *field_map_size);
 	const char *pos_end;
 	struct tuple_field *field;
 	while (tuple_format_iterator_advice(&it, &field, &pos, &pos_end)) {
@@ -854,11 +839,13 @@ tuple_field_map_create(struct tuple_format *format, const char *tuple,
 			diag_set(ClientError, ER_FIELD_TYPE,
 				tuple_field_path(field),
 				field_type_strs[field->type]);
-			goto error;
+			return -1;
 		}
 		/* Initialize field_map with data offset. */
-		if (field->offset_slot != TUPLE_OFFSET_SLOT_NIL)
-			(*field_map)[field->offset_slot] = pos - tuple;
+		if (field->offset_slot != TUPLE_OFFSET_SLOT_NIL) {
+			field_map_builder_set_slot(builder, field->offset_slot,
+						   pos - tuple);
+		}
 		/* Mark this field as present in the tuple. */
 		if (required_fields != NULL)
 			bit_clear(required_fields, field->id);
@@ -878,15 +865,10 @@ finish:
 			assert(field != NULL);
 			diag_set(ClientError, ER_FIELD_MISSING,
 				 tuple_field_path(field));
-			goto error;
+			return -1;
 		}
 	}
-out:
-	*field_map = (uint32_t *)((char *)*field_map - *field_map_size);
-	return rc;
-error:
-	rc = -1;
-	goto out;
+	return 0;
 }
 
 uint32_t
