@@ -715,6 +715,9 @@ resolveExprStep(Walker * pWalker, Expr * pExpr)
 						nId, zId);
 				pNC->nErr++;
 			}
+			if (pDef != NULL &&
+			   (pDef->funcFlags & SQL_FUNC_TYPEOF) != 0)
+				pNC->ncFlags |= NC_HasTypeofFunction;
 			if (is_agg)
 				pNC->ncFlags &= ~NC_AllowAgg;
 			sqlWalkExprList(pWalker, pList);
@@ -1621,4 +1624,8 @@ sql_resolve_self_reference(struct Parse *parser, struct space_def *def,
 		return;
 	if (expr_list != NULL)
 		sqlResolveExprListNames(&sNC, expr_list);
+	if (type == NC_IsCheck && sNC.ncFlags & NC_HasTypeofFunction) {
+		sqlErrorMsg(parser, "TYPEOF prohibited in check constraints");
+		parser->is_aborted = true;
+	}
 }

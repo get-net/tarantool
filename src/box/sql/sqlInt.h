@@ -2403,6 +2403,9 @@ struct NameContext {
 #define NC_MinMaxAgg 0x1000	/* min/max aggregates seen.  See note above */
 /** One or more identifiers are out of aggregate function. */
 #define NC_HasUnaggregatedId     0x2000
+/** One or more identifiers are in TYPEOF function. */
+#define NC_HasTypeofFunction     0x4000
+
 /*
  * An instance of the following structure contains all information
  * needed to generate code for a single SELECT statement.

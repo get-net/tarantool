@@ -1,6 +1,6 @@
 #!/usr/bin/env tarantool
 test = require("sqltester")
-test:plan(61)
+test:plan(56)
 
 --!./tcltestrunner.lua
 -- 2005 November 2
@@ -201,7 +201,7 @@ test:do_execsql_test(
         -- </check-1.17>
     })
 
-test:do_execsql_test(
+test:do_catchsql_test(
     "check-2.1",
     [[
         CREATE TABLE t2(
@@ -212,62 +212,8 @@ test:do_execsql_test(
         );
     ]], {
         -- <check-2.1>
-
+        1, "Failed to create check constraint 'THREE': TYPEOF prohibited in check constraints"
         -- </check-2.1>
-    })
-
-test:do_execsql_test(
-    "check-2.2",
-    [[
-        INSERT INTO t2 VALUES(1, 1,2.2,'three');
-        SELECT x, y, z FROM t2;
-    ]], {
-        -- <check-2.2>
-        1, 2.2, "three"
-        -- </check-2.2>
-    })
-
---db("close")
---sql("db", "test.db")
-test:do_execsql_test(
-    "check-2.3",
-    [[
-        INSERT INTO t2 VALUES(2, NULL, NULL, NULL);
-        SELECT x, y, z FROM t2;
-    ]], {
-        -- <check-2.3>
-        1, 2.2, "three", "", "", ""
-        -- </check-2.3>
-    })
-
-test:do_catchsql_test(
-    "check-2.4",
-    [[
-        INSERT INTO t2 VALUES(3, 1.1, NULL, NULL);
-    ]], {
-        -- <check-2.4>
-        1, "Check constraint failed: ONE"
-        -- </check-2.4>
-    })
-
-test:do_catchsql_test(
-    "check-2.5",
-    [[
-        INSERT INTO t2 VALUES(4, NULL, 5, NULL);
-    ]], {
-        -- <check-2.5>
-        1, "Check constraint failed: TWO"
-        -- </check-2.5>
-    })
-
-test:do_catchsql_test(
-    "check-2.6",
-    [[
-        INSERT INTO t2 VALUES(5, NULL, NULL, 3.14159);
-    ]], {
-        -- <check-2.6>
-        1, "Check constraint failed: THREE"
-        -- </check-2.6>
     })
 
 -- gh-3504: Check the CONSTRAINT name clause can't follow a constraint.
