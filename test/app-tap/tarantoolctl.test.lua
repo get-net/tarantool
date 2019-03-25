@@ -165,10 +165,13 @@ do
     local dir = fio.tempdir()
     local code = [[ box.cfg{memtx_memory = 104857600} ]]
     create_script(dir, 'script.lua', code)
+    create_script(dir, 'init.lua', [[ print('Hi!') ]])
 
     local status, err = pcall(function()
         test:test("basic test", function(test_i)
-            test_i:plan(16)
+            test_i:plan(18)
+            check_ok(test_i, dir, 'start', 'init.lua', 1, nil, "Starting instance init...",
+                     "Plaese, call box.cfg{} within your instance")
             check_ok(test_i, dir, 'start',  'script', 0, nil, "Starting instance")
             tctl_wait_start(dir, 'script')
             check_ok(test_i, dir, 'status', 'script', 0, nil, "is running")

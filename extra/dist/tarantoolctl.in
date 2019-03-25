@@ -547,7 +547,11 @@ local function start()
         end
         os.exit(1)
     end
-    local old_call = getmetatable(box.cfg).__call
+    local m_table = getmetatable(box.cfg)
+    if m_table == nil then
+        error("Plaese, call box.cfg{} within your instance")
+    end
+    local old_call = m_table.__call
     getmetatable(box.cfg).__call = function(old_cfg, cfg)
         if old_cfg.pid_file ~= nil and cfg ~= nil and cfg.pid_file ~= nil then
             cfg.pid_file = old_cfg.pid_file
