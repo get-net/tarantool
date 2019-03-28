@@ -1207,8 +1207,7 @@ replaceFunc(sql_context * context, int argc, sql_value ** argv)
 }
 
 /*
- * Implementation of the TRIM(), LTRIM(), and RTRIM() functions.
- * The userdata is 0x1 for left trim, 0x2 for right trim, 0x3 for both.
+ * Implementation of the TRIM() function.
  */
 static void
 trimFunc(sql_context * context, int argc, sql_value ** argv)
@@ -1216,32 +1215,49 @@ trimFunc(sql_context * context, int argc, sql_value ** argv)
 	const unsigned char *zIn;	/* Input string */
 	const unsigned char *zCharSet;	/* Set of characters to trim */
 	int nIn;		/* Number of bytes in input */
-	int flags;		/* 1: trimleft  2: trimright  3: trim */
 	int i;			/* Loop counter */
 	unsigned char *aLen = 0;	/* Length of each character in zCharSet */
 	unsigned char **azChar = 0;	/* Individual characters in zCharSet */
 	int nChar;		/* Number of characters in zCharSet */
+	/* The index of trim source in the argv array.*/
+	int source_index = argc - 1;
+	/* True if character set has been passed, false if has't been. */
+	bool set = true;
+	/* 1: if it's left side.
+	 * 2: if it's right side.
+	 * 3: if it's both sides. */
+	int trim_side = 3;
 
-	if (sql_value_type(argv[0]) == SQL_NULL) {
+	/* If we have 2 agrs, the first can be trimiing side or character set.
+	 * If we have 3 agrs, the first can be triiming side only, i.e. number. */
+	if (argc == 2 && sql_value_type(argv[0]) == SQL_INTEGER) {
+		trim_side = sql_value_int(argv[0]);
+		set = false;
+	} else if (argc == 3) {
+		trim_side = sql_value_int(argv[0]);
+	}
+
+	if (sql_value_type(argv[source_index]) == SQL_NULL) {
 		return;
 	}
-	zIn = sql_value_text(argv[0]);
+
+	zIn = sql_value_text(argv[source_index]);
 	if (zIn == 0)
 		return;
-	nIn = sql_value_bytes(argv[0]);
-	assert(zIn == sql_value_text(argv[0]));
-	if (argc == 1) {
+	nIn = sql_value_bytes(argv[source_index]);
+	assert(zIn == sql_value_text(argv[source_index]));
+	if (source_index == 0 || set == false ) {
 		static const unsigned char lenOne[] = { 1 };
 		static unsigned char *const azOne[] = { (u8 *) " " };
 		nChar = 1;
 		aLen = (u8 *) lenOne;
 		azChar = (unsigned char **)azOne;
 		zCharSet = 0;
-	} else if ((zCharSet = sql_value_text(argv[1])) == 0) {
+	} else if ((zCharSet = sql_value_text(argv[source_index - 1])) == 0) {
 		return;
 	} else {
 		const unsigned char *z = zCharSet;
-		int trim_set_sz = sql_value_bytes(argv[1]);
+		int trim_set_sz = sql_value_bytes(argv[source_index - 1]);
 		/*
 		* Count the number of UTF-8 characters passing
 		* through the entire char set, but not up
@@ -1272,8 +1288,7 @@ trimFunc(sql_context * context, int argc, sql_value ** argv)
 		}
 	}
 	if (nChar > 0) {
-		flags = SQL_PTR_TO_INT(sql_user_data(context));
-		if (flags & 1) {
+		if (trim_side & 1) {
 			while (nIn > 0) {
 				int len = 0;
 				for (i = 0; i < nChar; i++) {
@@ -1288,7 +1303,7 @@ trimFunc(sql_context * context, int argc, sql_value ** argv)
 				nIn -= len;
 			}
 		}
-		if (flags & 2) {
+		if (trim_side & 2) {
 			while (nIn > 0) {
 				int len = 0;
 				for (i = 0; i < nChar; i++) {
@@ -1738,12 +1753,9 @@ sqlRegisterBuiltinFunctions(void)
 			  FIELD_TYPE_INTEGER),
 		FUNCTION2(likely, 1, 0, 0, noopFunc, SQL_FUNC_UNLIKELY,
 			  FIELD_TYPE_INTEGER),
-		FUNCTION_COLL(ltrim, 1, 1, 0, trimFunc),
-		FUNCTION_COLL(ltrim, 2, 1, 0, trimFunc),
-		FUNCTION_COLL(rtrim, 1, 2, 0, trimFunc),
-		FUNCTION_COLL(rtrim, 2, 2, 0, trimFunc),
 		FUNCTION_COLL(trim, 1, 3, 0, trimFunc),
 		FUNCTION_COLL(trim, 2, 3, 0, trimFunc),
+		FUNCTION_COLL(trim, 3, 3, 0, trimFunc),
 		FUNCTION(min, -1, 0, 1, minmaxFunc, FIELD_TYPE_SCALAR),
 		FUNCTION(min, 0, 0, 1, 0, FIELD_TYPE_SCALAR),
 		AGGREGATE2(min, 1, 0, 1, minmaxStep, minMaxFinalize,

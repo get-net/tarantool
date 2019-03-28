@@ -937,6 +937,47 @@ expr(A) ::= CAST(X) LP expr(E) AS typedef(T) RP(Y). {
   sqlExprAttachSubtrees(pParse->db, A.pExpr, E.pExpr, 0);
 }
 %endif  SQL_OMIT_CAST
+
+expr(A) ::= TRIM(X) LP trim_operands(Y) RP(E). {
+  A.pExpr = sqlExprFunction(pParse, Y, &X);
+  spanSet(&A, &X, &E);
+}
+
+%type trim_operands {ExprList*}
+%destructor trim_operands {sql_expr_list_delete(pParse->db, $$);}
+trim_operands(A) ::= from_clause(F) expr(Y). {
+  if (Y.pExpr) {
+    A = F ? sql_expr_list_append(pParse->db, F, Y.pExpr) :
+    sql_expr_list_append(pParse->db, A, Y.pExpr);
+  }
+}
+trim_operands(A) ::= expr(Y). {
+  A = sql_expr_list_append(pParse->db, NULL, Y.pExpr);
+}
+
+%type from_clause {ExprList*}
+%destructor from_clause {sql_expr_list_delete(pParse->db, $$);}
+
+from_clause(A) ::= trim_specification(N) expr(Y) FROM. {
+  struct Expr* p = sqlExprAlloc(pParse->db, TK_INTEGER, &sqlIntTokens[N], 1);
+  A = sql_expr_list_append(pParse->db, NULL, p);
+  A = sql_expr_list_append(pParse->db, A, Y.pExpr);
+}
+from_clause(A) ::= trim_specification(N) FROM. {
+  struct Expr* p = sqlExprAlloc(pParse->db, TK_INTEGER, &sqlIntTokens[N], 1);
+  A = sql_expr_list_append(pParse->db, NULL, p);
+}
+from_clause(A) ::= expr(Y) FROM. {
+  A = sql_expr_list_append(pParse->db, NULL, Y.pExpr);
+}
+from_clause(A) ::= FROM. {A = 0;}
+
+%type trim_specification {int}
+
+trim_specification(A) ::= LEADING.  { A = 1; }
+trim_specification(A) ::= TRAILING. { A = 2; }
+trim_specification(A) ::= BOTH.     { A = 3; }
+
 expr(A) ::= id(X) LP distinct(D) exprlist(Y) RP(E). {
   if( Y && Y->nExpr>pParse->db->aLimit[SQL_LIMIT_FUNCTION_ARG] ){
     const char *err =

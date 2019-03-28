@@ -91,6 +91,7 @@ struct Keyword {
 #  define CTE        0x00040000
 #endif
 #  define RESERVED   0x00000001
+#  define FUNCTION   0x00080000
 /*
 ** These are the keywords
 */
@@ -202,6 +203,7 @@ static Keyword aKeywordTable[] = {
   { "TO",                     "TK_TO",          ALWAYS,           true  },
   { "TRANSACTION",            "TK_TRANSACTION", ALWAYS,           true  },
   { "TRIGGER",                "TK_TRIGGER",     TRIGGER,          true  },
+  { "TRIM",                   "TK_TRIM",        FUNCTION,         true  },
   { "UNION",                  "TK_UNION",       COMPOUND,         true  },
   { "UNIQUE",                 "TK_UNIQUE",      ALWAYS,           true  },
   { "UPDATE",                 "TK_UPDATE",      ALWAYS,           true  },
@@ -278,6 +280,9 @@ static Keyword aKeywordTable[] = {
   { "WHILE",                  "TK_STANDARD",    RESERVED,         true  },
   { "TEXT",                   "TK_TEXT",        RESERVED,         true  },
   { "TRUNCATE",               "TK_TRUNCATE",    ALWAYS,           true  },
+  { "LEADING",                "TK_LEADING",     ALWAYS,           true  },
+  { "TRAILING",               "TK_TRAILING",    ALWAYS,           true  },
+  { "BOTH",                   "TK_BOTH",        ALWAYS,           true  },
 };
 
 /* Number of keywords */

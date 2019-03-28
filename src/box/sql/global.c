@@ -223,11 +223,13 @@ SQL_WSD struct sqlConfig sqlConfig = {
 FuncDefHash sqlBuiltinFunctions;
 
 /*
- * Constant tokens for values 0 and 1.
+ * Constant tokens for necessary integer values.
  */
 const Token sqlIntTokens[] = {
 	{"0", 1, false},
-	{"1", 1, false}
+	{"1", 1, false},
+	{"2", 1, false},
+	{"3", 1, false}
 };
 
 /*
