@@ -417,96 +417,62 @@ vy_stmt_new_surrogate_delete_raw(struct tuple_format *format,
 	}
 	char *field_map_begin = data + src_size;
 	uint32_t *field_map = (uint32_t *) (data + total_size);
-
+	/*
+	 * Perform simultaneous parsing of the tuple and
+	 * format::fields tree traversal to copy indexed field
+	 * data and initialize field map.
+	 */
+	struct tuple_format_iterator it;
 	const char *src_pos = src_data;
-	uint32_t src_count = mp_decode_array(&src_pos);
-	uint32_t field_count = MIN(src_count, format->index_field_count);
+	if (tuple_format_iterator_create(&it, format, src_pos, region) != 0)
+		goto out;
+
+	uint32_t field_count = MIN((uint32_t)mp_stack_top(&it.stack)->count,
+				   format->index_field_count);
+	tuple_format_iterator_limit(&it, field_count);
+
 	/*
 	 * Nullify field map to be able to detect by 0, which key
 	 * fields are absent in tuple_field().
 	 */
 	memset((char *)field_map - format->field_map_size, 0,
 		format->field_map_size);
+
 	char *pos = mp_encode_array(data, field_count);
-	/*
-	 * Perform simultaneous parsing of the tuple and
-	 * format::fields tree traversal to copy indexed field
-	 * data and initialize field map. In many details the code
-	 * above works like tuple_field_map_create, read it's
-	 * comments for more details.
-	 */
-	uint32_t frames_sz = format->fields_depth * sizeof(struct mp_frame);
-	struct mp_frame *frames = region_alloc(region, frames_sz);
-	if (frames == NULL) {
-		diag_set(OutOfMemory, frames_sz, "region", "frames");
-		goto out;
-	}
-	struct mp_stack stack;
-	mp_stack_create(&stack, format->fields_depth, frames);
-	mp_stack_push(&stack, MP_ARRAY, field_count);
+	const char *src_pos_end;
 	struct tuple_field *field;
-	struct json_token *parent = &format->fields.root;
-	while (true) {
-		struct mp_frame *frame = mp_stack_top(&stack);
-		while (!mp_frame_advance(frame)) {
-			mp_stack_pop(&stack);
-			if (mp_stack_is_empty(&stack))
-				goto finish;
-			frame = mp_stack_top(&stack);
-			parent = parent->parent;
-		}
-		struct json_token token;
-		switch (frame->type) {
-		case MP_ARRAY:
-			token.type = JSON_TOKEN_NUM;
-			token.num = frame->idx;
-			break;
-		case MP_MAP:
-			if (mp_typeof(*src_pos) != MP_STR) {
-				mp_next(&src_pos);
-				mp_next(&src_pos);
-				pos = mp_encode_nil(pos);
-				pos = mp_encode_nil(pos);
-				continue;
-			}
-			token.type = JSON_TOKEN_STR;
-			token.str = mp_decode_str(&src_pos, (uint32_t *)&token.len);
-			pos = mp_encode_str(pos, token.str, token.len);
-			break;
-		default:
-			unreachable();
-		}
-		assert(parent != NULL);
-		field = json_tree_lookup_entry(&format->fields, parent, &token,
-					       struct tuple_field, token);
+	while (tuple_format_iterator_advice(&it, &field, &src_pos,
+					    &src_pos_end)) {
+		struct mp_frame *frame = mp_stack_top(&it.stack);
 		if (field == NULL || !field->is_key_part) {
-			mp_next(&src_pos);
+			/*
+			 * Instead of copying useless data having
+			 * no representation in tuple_format,
+			 * write nil.
+			 */
 			pos = mp_encode_nil(pos);
+			if (frame->type == MP_MAP)
+				pos = mp_encode_nil(pos);
 			continue;
 		}
+		if (field->token.type == JSON_TOKEN_STR) {
+			assert(frame->type == MP_MAP);
+			pos = mp_encode_str(pos, field->token.str,
+					    field->token.len);
+		}
+		/* Initialize field_map with data offset. */
 		if (field->offset_slot != TUPLE_OFFSET_SLOT_NIL)
 			field_map[field->offset_slot] = pos - data;
-		enum mp_type type = mp_typeof(*src_pos);
-		if ((type == MP_ARRAY || type == MP_MAP) &&
-		    !mp_stack_is_full(&stack)) {
-			uint32_t size;
-			if (type == MP_ARRAY) {
-				size = mp_decode_array(&src_pos);
-				pos = mp_encode_array(pos, size);
-			} else {
-				size = mp_decode_map(&src_pos);
-				pos = mp_encode_map(pos, size);
-			}
-			mp_stack_push(&stack, type, size);
-			parent = &field->token;
+		/* Copy field data. */
+		if (field->type == FIELD_TYPE_ARRAY) {
+			pos = mp_encode_array(pos, frame->count);
+		} else if (field->type == FIELD_TYPE_MAP) {
+			pos = mp_encode_map(pos, frame->count);
 		} else {
-			const char *src_field = src_pos;
-			mp_next(&src_pos);
-			memcpy(pos, src_field, src_pos - src_field);
-			pos += src_pos - src_field;
+			memcpy(pos, src_pos, src_pos_end - src_pos);
+			pos += src_pos_end - src_pos;
 		}
 	}
-finish:
 	assert(pos <= data + src_size);
 	uint32_t bsize = pos - data;
 	stmt = vy_stmt_alloc(format, bsize);

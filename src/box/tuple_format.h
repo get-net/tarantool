@@ -412,6 +412,81 @@ tuple_field_map_create(struct tuple_format *format, const char *tuple,
 int
 tuple_format_init();
 
+/**
+ * A tuple msgpack iterator that decodes the tuple and returns
+ * only fields that are described in the tuple_format.
+ */
+struct tuple_format_iterator {
+	/**
+	 * Tuple format is used to perform field lookups in
+	 * format::fields JSON tree.
+	 */
+	struct tuple_format *format;
+	/**
+	 * The pointer to the parent node in the format::fields
+	 * JSON tree. Is required for relative lookup for the
+	 * next field.
+	 */
+	struct json_token *parent;
+	/**
+	 * Traversal stack of msgpack frames is used to determine
+	 * when the parsing of the current composite mp structure
+	 * (array or map) is completed to update to the parent
+	 * pointer accordingly.
+	 */
+	struct mp_stack stack;
+	/** The current read position in msgpack. */
+	const char *pos;
+};
+
+/**
+ * Initialize tuple decode iterator with tuple format and tuple
+ * data pointer.
+ *
+ * Function uses the region for the traversal stack allocation.
+ *
+ * Returns 0 on success. In case of memory allocation error sets
+ * diag message and returns -1.
+ */
+int
+tuple_format_iterator_create(struct tuple_format_iterator *it,
+			     struct tuple_format *format, const char *tuple,
+			     struct region *region);
+
+/**
+ * Perform tuple decode step and update iterator state.
+ *
+ * Returns true when decode step succeeded and initialize:
+ * field - the tuple_field pointer to format::fields field
+ *         that matches to the currently processed msgpack field
+ *         (when exists),
+ * data  - the pointer to the currently processed msgpack field,
+ * data_end - the pointer to the end of currently processed
+ *            msgpack field(in case of MP_MAP or MP_ARRAY that
+ *            is described in format this is the end of field
+ *            header).
+ */
+bool
+tuple_format_iterator_advice(struct tuple_format_iterator *it,
+			     struct tuple_field **field, const char **data,
+			     const char **data_end);
+
+/**
+ * Limit the number of fields that iterator must decode for
+ * the current nesting level.
+ *
+ * The field_count argument must not exceed the number of items
+ * available for scanning at the current nesting level.
+ */
+static inline void
+tuple_format_iterator_limit(struct tuple_format_iterator *it,
+			    uint32_t field_count)
+{
+	struct mp_frame *frame = mp_stack_top(&it->stack);
+	assert(field_count <= (uint32_t)frame->count);
+	frame->count = field_count;
+}
+
 #if defined(__cplusplus)
 } /* extern "C" */
 #endif /* defined(__cplusplus) */
