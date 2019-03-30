@@ -1218,7 +1218,7 @@ decode_stat_string(const char *stat_string, int stat_size, tRowcnt *stat_exact,
  * @param argv Callback arguments.
  * @retval 0 on success, -1 otherwise.
  */
-static int
+int
 analysis_loader(void *data, int argc, char **argv, char **unused)
 {
 	assert(argc == 3);
@@ -1704,11 +1704,13 @@ sql_analysis_load(struct sql *db)
 	info.db = db;
 	info.stats = stats;
 	info.index_count = 0;
-	const char *load_stat1 =
+	MAYBE_UNUSED const char *load_stat1 =
 		"SELECT \"tbl\",\"idx\",\"stat\" FROM \"_sql_stat1\"";
-	/* Load new statistics out of the _sql_stat1 table. */
-	if (sql_exec(db, load_stat1, analysis_loader, &info, 0) != 0)
-		goto fail;
+	/*
+	 * Here was loading new statistics out of the _sql_stat1
+	 * table using analysis_loader. This part of code was
+	 * removed due to removal of sql_exec().
+	 */
 	if (info.index_count == 0) {
 		box_txn_commit();
 		return SQL_OK;
