@@ -38,7 +38,6 @@ add_library(sql STATIC
     global.c
     hash.c
     insert.c
-    legacy.c
     main.c
     malloc.c
     os.c

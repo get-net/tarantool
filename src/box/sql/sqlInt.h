@@ -592,13 +592,6 @@ sql_column_value(sql_stmt *,
 int
 sql_finalize(sql_stmt * pStmt);
 
-int
-sql_exec(sql *,	/* An open database */
-	     const char *sql,	/* SQL to be evaluated */
-	     int (*callback) (void *, int, char **, char **),	/* Callback function */
-	     void *,	/* 1st argument to callback */
-	     char **errmsg	/* Error msg written here */
-	);
 #define SQL_IOERR_READ              (SQL_IOERR | (1<<8))
 #define SQL_IOERR_SHORT_READ        (SQL_IOERR | (2<<8))
 #define SQL_IOERR_WRITE             (SQL_IOERR | (3<<8))
