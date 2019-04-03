@@ -1,6 +1,7 @@
 #!/usr/bin/env tarantool
 test = require("sqltester")
-test:plan(21)
+
+test:plan(29)
 
 --!./tcltestrunner.lua
 -- 2012 February 02
@@ -303,6 +304,104 @@ test:do_test(
         -- </minmax4-2.7>
     })
 
+-- The following tests ensure that MIN and MAX correctly proceeds
+-- SCALAR type. The expected behavior:
+-- 1) If column actually contains INTEGER and FLOAT values,
+--    then INTEGER values are casted to FLOATs and the result
+--    is computed.
+-- 2) If column actually contains TEXT and values of any other
+--    types, then the error is raised.
+-- 3) All other combinations would also result in error.
+test:do_test(
+    "minmax4-3.1",
+    function()
+        return test:execsql [[
+            CREATE TABLE t4(a INT PRIMARY KEY, b SCALAR);
+            INSERT INTO t4 VALUES (1, 2);
+            INSERT INTO t4 VALUES (2, 1.5);
+            SELECT MAX(b) FROM t4;
+        ]]
+        end, {
+            2.0,
+    })
 
+test:do_test(
+    "minmax4-3.2",
+    function()
+        return test:execsql [[
+            SELECT MIN(b) FROM t4;
+        ]]
+    end, {
+        1.5,
+    })
+
+test:do_test(
+    "minmax4-3.3",
+    function()
+        return test:catchsql [[
+            INSERT INTO t4 VALUES (3, 'abc');
+            SELECT MIN(b) FROM t4;
+        ]]
+    end, {
+        1, "Inconsistent types: expected REAL got TEXT"
+    })
+
+test:do_test(
+    "minmax4-3.4",
+    function()
+        return test:catchsql [[
+            SELECT MAX(b) FROM t4;
+        ]]
+    end, {
+        1, "Inconsistent types: expected REAL got TEXT"
+    })
+
+-- Cases when we call aggregate MIN/MAX functions on column with
+-- index (e.g. PRIMARY KEY index) deserves it's own test
+-- because in this case MIN/MAX is implemented not with
+-- dedicated function, but with usage of corresponding index.
+test:do_test(
+    "minmax4-3.5",
+    function()
+        return test:execsql [[
+            CREATE TABLE t5(a SCALAR PRIMARY KEY);
+            INSERT INTO t5 VALUES (2);
+            INSERT INTO t5 VALUES (1.5);
+            SELECT MAX(a) FROM t5;
+        ]]
+    end, {
+        2.0,
+    })
+
+test:do_test(
+    "minmax4-3.6",
+    function()
+        return test:execsql [[
+            SELECT MIN(a) FROM t5;
+        ]]
+    end, {
+        1.5,
+    })
+
+test:do_test(
+    "minmax4-3.7",
+    function()
+        return test:catchsql [[
+            INSERT INTO t5 VALUES ('abc');
+            SELECT MIN(a) FROM t5;
+        ]]
+    end, {
+        1, "Inconsistent types: expected INTEGER got TEXT"
+    })
+
+test:do_test(
+    "minmax4-3.8",
+    function()
+        return test:catchsql [[
+            SELECT MAX(a) FROM t5;
+        ]]
+    end, {
+        1, "Inconsistent types: expected INTEGER got TEXT"
+    })
 
 test:finish_test()

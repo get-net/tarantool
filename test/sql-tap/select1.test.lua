@@ -1,6 +1,6 @@
 #!/usr/bin/env tarantool
 test = require("sqltester")
-test:plan(173)
+test:plan(172)
 
 --!./tcltestrunner.lua
 -- ["set","testdir",[["file","dirname",["argv0"]]]]
@@ -501,16 +501,6 @@ test:do_catchsql_test(
         -- <select1-2.17>
         0, {45}
         -- </select1-2.17>
-    })
-
-test:do_execsql_test(
-    "select1-2.17.1",
-    [[
-        SELECT sum(a) FROM t3
-    ]], {
-        -- <select1-2.17.1>
-        44.0
-        -- </select1-2.17.1>
     })
 
 test:do_catchsql_test(

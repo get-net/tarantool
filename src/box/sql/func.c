@@ -45,6 +45,17 @@
 #include <unicode/uchar.h>
 #include <unicode/ucol.h>
 
+/*
+ * This structure is for keeping context during work of
+ * aggregate function.
+ */
+struct aggregate_context {
+    /** Value being aggregated. (e.g. current MAX or current counter value). */
+    Mem value;
+    /** Reference value to keep track of previous argument's type. */
+    Mem reference_value;
+};
+
 static UConverter* pUtf8conv;
 
 /*
@@ -1509,9 +1520,14 @@ sumStep(sql_context * context, int argc, sql_value ** argv)
 			    && sqlAddInt64(&p->iSum, v)) {
 				p->overflow = 1;
 			}
-		} else {
+		} else if (type == SQL_FLOAT) {
 			p->rSum += sql_value_double(argv[0]);
 			p->approx = 1;
+		} else {
+			diag_set(ClientError, ER_INCONSISTENT_TYPES,
+				 "INTEGER or FLOAT", mem_type_to_str(argv[0]));
+			context->fErrorOrAux = 1;
+			context->isError = SQL_TARANTOOL_ERROR;
 		}
 	}
 }
@@ -1588,16 +1604,57 @@ static void
 minmaxStep(sql_context *context, int not_used, sql_value **argv)
 {
 	UNUSED_PARAMETER(not_used);
-	sql_value *arg = argv[0];
-	sql_value *best = sql_aggregate_context(context, sizeof(*best));
+	struct aggregate_context *aggr_context =
+		(struct aggregate_context *) sql_aggregate_context(context,
+								   sizeof(*aggr_context));
+	if (aggr_context == NULL)
+		return;
 
+	sql_value *arg = argv[0];
+	sql_value *best = &(aggr_context->value);
 	if (best == NULL)
 		return;
 
-	if (sql_value_type(argv[0]) == SQL_NULL) {
+	enum sql_type sql_type = sql_value_type(arg);
+
+	if (sql_type == SQL_NULL) {
 		if (best->flags != 0)
 			sqlSkipAccumulatorLoad(context);
 	} else if (best->flags != 0) {
+		/*
+		 * During proceeding of the function, arguments
+		 * of different types may be encountered (if
+		 * SCALAR type column is proceeded). Some types
+		 * are compatible (INTEGER and FLOAT) and others
+		 * are not (TEXT and BLOB are not compatible with
+		 * any other type). In the later case an error
+		 * is raised.
+		 */
+		sql_value *reference_value = &aggr_context->reference_value;
+		if (reference_value->flags == 0)
+			sqlVdbeMemCopy(reference_value, arg);
+		enum sql_type ref_sql_type = sql_value_type(reference_value);
+
+		bool is_compatible = true;
+		if (sql_type != ref_sql_type) {
+			is_compatible = false;
+			if ((sql_type == SQL_INTEGER || sql_type == SQL_FLOAT) &&
+			    (ref_sql_type == SQL_INTEGER ||
+			     ref_sql_type == SQL_FLOAT)) {
+				is_compatible = true;
+			}
+		}
+		if (!is_compatible) {
+			diag_set(ClientError, ER_INCONSISTENT_TYPES,
+				 mem_type_to_str(reference_value),
+				 mem_type_to_str(arg));
+			context->fErrorOrAux = 1;
+			context->isError = SQL_TARANTOOL_ERROR;
+			sqlVdbeMemRelease(best);
+			sqlVdbeMemRelease(reference_value);
+			return;
+		}
+
 		int max;
 		int cmp;
 		struct coll *coll = sqlGetFuncCollSeq(context);
@@ -1625,13 +1682,16 @@ minmaxStep(sql_context *context, int not_used, sql_value **argv)
 static void
 minMaxFinalize(sql_context * context)
 {
-	sql_value *pRes;
-	pRes = (sql_value *) sql_aggregate_context(context, 0);
+	struct aggregate_context *func_context =
+		(struct aggregate_context *) sql_aggregate_context(context, sizeof(*func_context));
+	sql_value *pRes = &(func_context->value);
+
 	if (pRes != NULL) {
 		if (pRes->flags != 0) {
 			sql_result_value(context, pRes);
 		}
 		sqlVdbeMemRelease(pRes);
+		sqlVdbeMemRelease(&func_context->reference_value);
 	}
 }
 

@@ -4340,12 +4340,21 @@ pushDownWhereTerms(Parse * pParse,	/* Parse context (for malloc() and error repo
  * argument, this function checks if the following are true:
  *
  *    * the query contains just a single aggregate function,
- *    * the aggregate function is either min() or max(), and
- *    * the argument to the aggregate function is a column value.
+ *    * the aggregate function is either min() or max(),
+ *    * the argument to the aggregate function is a column value,
+ *    * the type of column is not SCALAR.
  *
  * If all of the above are true, then WHERE_ORDERBY_MIN or WHERE_ORDERBY_MAX
  * is returned as appropriate. Also, *ppMinMax is set to point to the
  * list of arguments passed to the aggregate before returning.
+ *
+ * The requirement of column type not being SCALAR follows from
+ * the purpose of the function. The purpose of the function is
+ * to answer the question: "Should MIN/MAX call be optimised by
+ * using ORDER ON clause code?" If the type of column is SCALAR
+ * then we have to iterate over all rows to check if their types
+ * are compatible. Hence, the optimisation should not be used.
+ * For details please see: https://github.com/tarantool/tarantool/issues/4032
  *
  * Or, if the conditions above are not met, *ppMinMax is set to 0 and
  * WHERE_ORDERBY_NORMAL is returned.
@@ -4364,6 +4373,8 @@ minMaxQuery(AggInfo * pAggInfo, ExprList ** ppMinMax)
 		if (pEList && pEList->nExpr == 1
 		    && pEList->a[0].pExpr->op == TK_AGG_COLUMN) {
 			const char *zFunc = pExpr->u.zToken;
+			if (sql_expr_type(pEList->a[0].pExpr) == FIELD_TYPE_SCALAR)
+				return eRet;
 			if (sqlStrICmp(zFunc, "min") == 0) {
 				eRet = WHERE_ORDERBY_MIN;
 				*ppMinMax = pEList;

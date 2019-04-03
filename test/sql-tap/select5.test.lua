@@ -553,8 +553,8 @@ test:do_execsql_test(
 test:do_execsql_test(
     "select5-9.13.2",
     [[
-            CREATE TABLE jj (s1 INT, s2 VARCHAR(1), PRIMARY KEY(s1));
-            INSERT INTO jj VALUES(1, 'A'), (2, 'a');
+            CREATE TABLE jj (s1 INT, s2 INTEGER, PRIMARY KEY(s1));
+            INSERT INTO jj VALUES(1, 0), (2, 0);
             SELECT 1 FROM jj HAVING avg(s2) = 1 AND avg(s2) = 0;
     ]], {
     -- <select5-9.13.2>

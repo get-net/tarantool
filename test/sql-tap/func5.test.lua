@@ -1,6 +1,6 @@
 #!/usr/bin/env tarantool
 test = require("sqltester")
-test:plan(15)
+test:plan(19)
 
 --!./tcltestrunner.lua
 -- 2010 August 27
@@ -226,6 +226,54 @@ test:do_catchsql_test(
         -- <func5-3.10>
         1, "Illegal mix of collations"
         -- <func5-3.10>
+    }
+)
+
+-- The following tests ensure that AVG and SUM correctly proceeds
+-- SCALAR type. The expected behavior:
+-- 1) If column actually contains INTEGER and FLOAT values,
+--    then INTEGER values are casted to FLOATs and the result
+--    is computed.
+-- 2) If column actually contains values of any other
+--    types, then the error is raised.
+
+test:do_execsql_test(
+    "func-5.4.1",
+    [[
+        CREATE TABLE test6(a SCALAR PRIMARY KEY);
+        INSERT INTO test6 VALUES(1);
+        INSERT INTO test6 VALUES(2.5);
+        SELECT SUM(a) FROM test6;
+    ]], {
+        3.5
+    }
+)
+
+test:do_execsql_test(
+    "func-5.4.2",
+    [[
+        SELECT AVG(a) FROM test6;
+    ]], {
+        1.75
+    }
+)
+
+test:do_catchsql_test(
+    "func-5.4.3",
+    [[
+        INSERT INTO test6 VALUES('abc');
+        SELECT SUM(a) FROM test6;
+    ]], {
+        1,"Inconsistent types: expected INTEGER or FLOAT got TEXT"
+    }
+)
+
+test:do_catchsql_test(
+    "func-5.4.4",
+    [[
+        SELECT AVG(a) FROM test6;
+    ]], {
+        1,"Inconsistent types: expected INTEGER or FLOAT got TEXT"
     }
 )
 
