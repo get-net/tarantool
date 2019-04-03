@@ -7,7 +7,7 @@ end
 
 box.cfg({
     replication     = replication,
-    vinyl_memory    = 1024 * 1024,
+    vinyl_memory    = 107374182,
 })
 
 require('console').listen(os.getenv('ADMIN'))
