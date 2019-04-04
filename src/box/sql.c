@@ -166,7 +166,6 @@ int
 is_tarantool_error(int rc)
 {
 	return (rc == SQL_TARANTOOL_ERROR ||
-		rc == SQL_TARANTOOL_ITERATOR_FAIL ||
 		rc == SQL_TARANTOOL_INSERT_FAIL);
 }
 
@@ -552,7 +551,7 @@ int tarantoolsqlEphemeralClearTable(BtCursor *pCur)
 						    0 /* part_count */);
 	if (it == NULL) {
 		pCur->eState = CURSOR_INVALID;
-		return SQL_TARANTOOL_ITERATOR_FAIL;
+		return SQL_TARANTOOL_ERROR;
 	}
 
 	struct tuple *tuple;
@@ -591,7 +590,7 @@ int tarantoolsqlClearTable(struct space *space, uint32_t *tuple_count)
 	struct index *pk = space_index(space, 0 /* PK */);
 	struct iterator *iter = index_create_iterator(pk, ITER_ALL, nil_key, 0);
 	if (iter == NULL)
-		return SQL_TARANTOOL_ITERATOR_FAIL;
+		return SQL_TARANTOOL_ERROR;
 	while (iterator_next(iter, &tuple) == 0 && tuple != NULL) {
 		request.key = tuple_extract_key(tuple, pk->def->key_def,
 						&key_size);
@@ -898,7 +897,7 @@ cursor_seek(BtCursor *pCur, int *pRes)
 	uint32_t part_count = mp_decode_array(&key);
 	if (key_validate(pCur->index->def, pCur->iter_type, key, part_count)) {
 		diag_log();
-		return SQL_TARANTOOL_ITERATOR_FAIL;
+		return SQL_TARANTOOL_ERROR;
 	}
 
 	struct space *space = pCur->space;
@@ -912,7 +911,7 @@ cursor_seek(BtCursor *pCur, int *pRes)
 		if (txn != NULL)
 			txn_rollback_stmt();
 		pCur->eState = CURSOR_INVALID;
-		return SQL_TARANTOOL_ITERATOR_FAIL;
+		return SQL_TARANTOOL_ERROR;
 	}
 	if (txn != NULL)
 		txn_commit_ro_stmt(txn);
@@ -939,7 +938,7 @@ cursor_advance(BtCursor *pCur, int *pRes)
 
 	struct tuple *tuple;
 	if (iterator_next(pCur->iter, &tuple) != 0)
-		return SQL_TARANTOOL_ITERATOR_FAIL;
+		return SQL_TARANTOOL_ERROR;
 	if (pCur->last_tuple)
 		box_tuple_unref(pCur->last_tuple);
 	if (tuple) {
