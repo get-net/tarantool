@@ -542,7 +542,6 @@ vdbePmaReadBlob(PmaReader * p,	/* PmaReader from which to take the blob */
 
 		/* Readr data from the file. Return early if an error occurs. */
 		rc = sqlOsRead(p->pFd, p->aBuffer, nRead, p->iReadOff);
-		assert(rc != SQL_IOERR_SHORT_READ);
 		if (rc != SQL_OK)
 			return rc;
 	}
@@ -679,8 +678,6 @@ vdbePmaReaderSeek(SortSubtask * pTask,	/* Task context */
 
 	assert(pReadr->pIncr == 0 || pReadr->pIncr->bEof == 0);
 
-	if (sqlFaultSim(201))
-		return SQL_IOERR_READ;
 	if (pReadr->aMap) {
 		sqlOsUnfetch(pReadr->pFd, 0, pReadr->aMap);
 		pReadr->aMap = 0;
@@ -1243,8 +1240,6 @@ vdbeSorterOpenTempFile(sql * db,	/* Database handle doing sort */
 		       sql_file ** ppFd)
 {
 	int rc;
-	if (sqlFaultSim(202))
-		return SQL_IOERR_ACCESS;
 	rc = sqlOsOpenMalloc(db->pVfs, 0, ppFd,
 				 SQL_OPEN_READWRITE | SQL_OPEN_CREATE |
 				 SQL_OPEN_EXCLUSIVE |

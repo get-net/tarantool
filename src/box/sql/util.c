@@ -136,11 +136,10 @@ sqlStrlen30(const char *z)
  * sqlError().
  */
 static SQL_NOINLINE void
-sqlErrorFinish(sql * db, int err_code)
+sqlErrorFinish(sql * db)
 {
 	if (db->pErr)
 		sqlValueSetNull(db->pErr);
-	sqlSystemError(db, err_code);
 }
 
 /*
@@ -154,20 +153,7 @@ sqlError(sql * db, int err_code)
 	assert(db != 0);
 	db->errCode = err_code;
 	if (err_code || db->pErr)
-		sqlErrorFinish(db, err_code);
-}
-
-/*
- * Load the sql.iSysErrno field if that is an appropriate thing
- * to do based on the sql error code in rc.
- */
-void
-sqlSystemError(sql * db, int rc)
-{
-	rc &= 0xff;
-	if (rc == SQL_CANTOPEN || rc == SQL_IOERR) {
-		db->iSysErrno = sqlOsGetLastError(db->pVfs);
-	}
+		sqlErrorFinish(db);
 }
 
 /*
@@ -196,7 +182,6 @@ sqlErrorWithMsg(sql * db, int err_code, const char *zFormat, ...)
 {
 	assert(db != 0);
 	db->errCode = err_code;
-	sqlSystemError(db, err_code);
 	if (zFormat == 0) {
 		sqlError(db, err_code);
 	} else if (db->pErr || (db->pErr = sqlValueNew(db)) != 0) {

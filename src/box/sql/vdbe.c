@@ -5497,7 +5497,6 @@ abort_due_to_error:
 		sqlVdbeError(p, "%s", msg);
 	}
 	p->rc = rc;
-	sqlSystemError(db, rc);
 	sqlVdbeHalt(p);
 	rc = SQL_ERROR;
 

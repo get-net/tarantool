@@ -2220,8 +2220,8 @@ checkActiveVdbeCnt(sql * db)
  * transaction is rolled back. If eOp is SAVEPOINT_RELEASE, then the
  * statement transaction is committed.
  *
- * If an IO error occurs, an SQL_IOERR_XXX error code is returned.
- * Otherwise SQL_OK.
+ * @retval 0 on success
+ * @retval -1 on error
  */
 int
 sqlVdbeCloseStatement(Vdbe * p, int eOp)
@@ -2332,7 +2332,6 @@ sqlVdbeHalt(Vdbe * p)
 	 * If any of the following errors occur:
 	 *
 	 *     SQL_NOMEM
-	 *     SQL_IOERR
 	 *     SQL_FULL
 	 *     SQL_INTERRUPT
 	 *
@@ -2360,7 +2359,7 @@ sqlVdbeHalt(Vdbe * p)
 
 		/* Check for one of the special errors */
 		mrc = p->rc & 0xff;
-		isSpecialError = mrc == SQL_NOMEM || mrc == SQL_IOERR
+		isSpecialError = mrc == SQL_NOMEM
 		    || mrc == SQL_INTERRUPT || mrc == SQL_FULL;
 		if (isSpecialError) {
 			/* If the query was read-only and the error code is SQL_INTERRUPT,
