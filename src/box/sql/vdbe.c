@@ -5484,7 +5484,7 @@ default: {          /* This is really OP_Noop and OP_Explain */
 abort_due_to_error:
 	if (db->mallocFailed) rc = SQL_NOMEM;
 	assert(rc);
-	if (p->zErrMsg==0 && rc!=SQL_IOERR_NOMEM) {
+	if (p->zErrMsg==0) {
 		const char *msg;
 		/* Avoiding situation when Tarantool error is set,
 		 * but error message isn't.
@@ -5498,11 +5498,7 @@ abort_due_to_error:
 	}
 	p->rc = rc;
 	sqlSystemError(db, rc);
-	testcase( sqlGlobalConfig.xLog!=0);
-	sql_log(rc, "statement aborts at %d: [%s] %s",
-		    (int)(pOp - aOp), p->zSql, p->zErrMsg);
 	sqlVdbeHalt(p);
-	if (rc==SQL_IOERR_NOMEM) sqlOomFault(db);
 	rc = SQL_ERROR;
 
 	/* This is the only way out of this procedure. */

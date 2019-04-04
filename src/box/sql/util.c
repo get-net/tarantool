@@ -164,8 +164,6 @@ sqlError(sql * db, int err_code)
 void
 sqlSystemError(sql * db, int rc)
 {
-	if (rc == SQL_IOERR_NOMEM)
-		return;
 	rc &= 0xff;
 	if (rc == SQL_CANTOPEN || rc == SQL_IOERR) {
 		db->iSysErrno = sqlOsGetLastError(db->pVfs);
