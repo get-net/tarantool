@@ -251,7 +251,7 @@ test:do_catchsql_test(
         end;
     ]], {
         -- <trigger1-1.12>
-        1, "Failed to execute SQL statement: SQL error: cannot create INSTEAD OF trigger on space: T1"
+        1, "SQL error: cannot create INSTEAD OF trigger on space: T1"
         -- </trigger1-1.12>
     })
 
@@ -265,7 +265,7 @@ test:do_catchsql_test(
         end;
     ]], {
         -- <trigger1-1.13>
-        1, "Failed to execute SQL statement: SQL error: cannot create BEFORE trigger on view: V1"
+        1, "SQL error: cannot create BEFORE trigger on view: V1"
         -- </trigger1-1.13>
     })
 
@@ -280,7 +280,7 @@ test:do_catchsql_test(
         end;
     ]], {
         -- <trigger1-1.14>
-        1, "Failed to execute SQL statement: SQL error: cannot create AFTER trigger on view: V1"
+        1, "SQL error: cannot create AFTER trigger on view: V1"
         -- </trigger1-1.14>
     })
 

@@ -189,7 +189,7 @@ box.error.injection.set("ERRINJ_WAL_IO", true)
 ...
 box.execute("CREATE TRIGGER t1t INSERT ON t1 BEGIN INSERT INTO t2 VALUES (1, 1); END;")
 ---
-- error: 'Failed to execute SQL statement: Failed to write to disk'
+- error: Failed to write to disk
 ...
 box.execute("CREATE INDEX t1a ON t1(a);")
 ---

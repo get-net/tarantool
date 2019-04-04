@@ -162,13 +162,6 @@ const char *tarantoolErrorMessage()
 	return box_error_message(box_error_last());
 }
 
-int
-is_tarantool_error(int rc)
-{
-	return (rc == SQL_TARANTOOL_ERROR ||
-		rc == SQL_TARANTOOL_INSERT_FAIL);
-}
-
 const void *tarantoolsqlPayloadFetch(BtCursor *pCur, u32 *pAmt)
 {
 	assert(pCur->curFlags & BTCF_TaCursor ||
@@ -419,7 +412,7 @@ int tarantoolsqlEphemeralInsert(struct space *space, const char *tuple,
 	assert(space != NULL);
 	mp_tuple_assert(tuple, tuple_end);
 	if (space_ephemeral_replace(space, tuple, tuple_end) != 0)
-		return SQL_TARANTOOL_INSERT_FAIL;
+		return SQL_TARANTOOL_ERROR;
 	return SQL_OK;
 }
 
@@ -446,7 +439,7 @@ insertOrReplace(struct space *space, const char *tuple, const char *tuple_end,
 	request.type = type;
 	mp_tuple_assert(request.tuple, request.tuple_end);
 	int rc = box_process_rw(&request, space, NULL);
-	return rc == 0 ? SQL_OK : SQL_TARANTOOL_INSERT_FAIL;
+	return rc == 0 ? SQL_OK : SQL_TARANTOOL_ERROR;
 }
 
 int tarantoolsqlInsert(struct space *space, const char *tuple,

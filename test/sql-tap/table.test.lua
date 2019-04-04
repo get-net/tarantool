@@ -1211,7 +1211,7 @@ test:do_catchsql_test(
         INSERT INTO T21 VALUES(1, 2, 2);
     ]], {
         -- <table-21.2>
-        1, "Failed to execute SQL statement: Duplicate key exists in unique index 'pk_unnamed_T21_1' in space 'T21'"
+        1, "Duplicate key exists in unique index 'pk_unnamed_T21_1' in space 'T21'"
         -- </table-21.2>
     })
 
@@ -1283,7 +1283,7 @@ test:do_catchsql_test(
         INSERT INTO T22 VALUES(2, 1, 1);
     ]], {
         -- <table-22.3>
-        1,"Failed to execute SQL statement: Duplicate key exists in unique index 'unique_ONE_2' in space 'T22'"
+        1,"Duplicate key exists in unique index 'unique_ONE_2' in space 'T22'"
         -- </table-22.3>
     })
 
@@ -1308,7 +1308,7 @@ test:do_catchsql_test(
         INSERT INTO T24 VALUES(2, 1, 1);
     ]], {
         -- <table-22.5>
-        1, "Failed to execute SQL statement: Duplicate key exists in unique index 'unique_TWO_2' in space 'T24'"
+        1, "Duplicate key exists in unique index 'unique_TWO_2' in space 'T24'"
         -- </table-22.5>
     })
 
@@ -1362,7 +1362,7 @@ test:do_catchsql_test(
         INSERT INTO T28 VALUES(11);
     ]], {
         -- <table-22.9>
-        1,"Failed to execute SQL statement: Duplicate key exists in unique index 'pk_unnamed_T28_1' in space 'T28'"
+        1,"Duplicate key exists in unique index 'pk_unnamed_T28_1' in space 'T28'"
         -- </table-22.9>
     })
 

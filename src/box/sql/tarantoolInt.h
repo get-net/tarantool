@@ -13,8 +13,6 @@ struct fk_constraint_def;
 /* Misc */
 const char *tarantoolErrorMessage();
 
-int is_tarantool_error(int rc);
-
 /* Storage interface. */
 const void *tarantoolsqlPayloadFetch(BtCursor * pCur, u32 * pAmt);
 
