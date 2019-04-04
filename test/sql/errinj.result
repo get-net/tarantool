@@ -257,7 +257,7 @@ box.error.injection.set("ERRINJ_WAL_IO", true)
 ...
 box.execute("DROP TRIGGER t1t;")
 ---
-- error: 'Failed to execute SQL statement: Failed to write to disk'
+- error: Failed to write to disk
 ...
 box.error.injection.set("ERRINJ_WAL_IO", false)
 ---
@@ -374,7 +374,7 @@ errinj.set("ERRINJ_WAL_IO", true)
 ...
 box.execute("ALTER TABLE t3 DROP CONSTRAINT fk1;")
 ---
-- error: 'Failed to execute SQL statement: Failed to write to disk'
+- error: Failed to write to disk
 ...
 box.execute("INSERT INTO t3 VALUES(1, 1, 3);")
 ---

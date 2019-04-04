@@ -167,7 +167,6 @@ is_tarantool_error(int rc)
 {
 	return (rc == SQL_TARANTOOL_ERROR ||
 		rc == SQL_TARANTOOL_ITERATOR_FAIL ||
-		rc == SQL_TARANTOOL_DELETE_FAIL ||
 		rc == SQL_TARANTOOL_INSERT_FAIL);
 }
 
@@ -483,12 +482,12 @@ int tarantoolsqlEphemeralDelete(BtCursor *pCur)
 				pCur->iter->index->def->key_def,
 				&key_size);
 	if (key == NULL)
-		return SQL_TARANTOOL_DELETE_FAIL;
+		return SQL_TARANTOOL_ERROR;
 
 	int rc = space_ephemeral_delete(pCur->space, key);
 	if (rc != 0) {
 		diag_log();
-		return SQL_TARANTOOL_DELETE_FAIL;
+		return SQL_TARANTOOL_ERROR;
 	}
 	return SQL_OK;
 }
@@ -509,11 +508,11 @@ int tarantoolsqlDelete(BtCursor *pCur, u8 flags)
 				pCur->iter->index->def->key_def,
 				&key_size);
 	if (key == NULL)
-		return SQL_TARANTOOL_DELETE_FAIL;
+		return SQL_TARANTOOL_ERROR;
 	rc = sql_delete_by_key(pCur->space, pCur->index->def->iid, key,
 			       key_size);
 
-	return rc == 0 ? SQL_OK : SQL_TARANTOOL_DELETE_FAIL;
+	return rc == 0 ? SQL_OK : SQL_TARANTOOL_ERROR;
 }
 
 int
@@ -531,7 +530,7 @@ sql_delete_by_key(struct space *space, uint32_t iid, char *key,
 	assert(space_index(space, iid)->def->opts.is_unique);
 	int rc = box_process_rw(&request, space, &unused);
 
-	return rc == 0 ? SQL_OK : SQL_TARANTOOL_DELETE_FAIL;
+	return rc == 0 ? SQL_OK : SQL_TARANTOOL_ERROR;
 }
 
 /*
@@ -565,7 +564,7 @@ int tarantoolsqlEphemeralClearTable(BtCursor *pCur)
 					&key_size);
 		if (space_ephemeral_delete(pCur->space, key) != 0) {
 			iterator_delete(it);
-			return SQL_TARANTOOL_DELETE_FAIL;
+			return SQL_TARANTOOL_ERROR;
 		}
 	}
 	iterator_delete(it);
@@ -600,7 +599,7 @@ int tarantoolsqlClearTable(struct space *space, uint32_t *tuple_count)
 		rc = box_process_rw(&request, space, &unused);
 		if (rc != 0) {
 			iterator_delete(iter);
-			return SQL_TARANTOOL_DELETE_FAIL;
+			return SQL_TARANTOOL_ERROR;
 		}
 		(*tuple_count)++;
 	}
