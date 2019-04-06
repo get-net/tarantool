@@ -1,6 +1,6 @@
 #!/usr/bin/env tarantool
 test = require("sqltester")
-test:plan(40)
+test:plan(44)
 
 --!./tcltestrunner.lua
 -- 2001 September 15
@@ -184,42 +184,36 @@ test:do_execsql_test(
 
 -- Try to insert a non-integer value into the primary key field.  This
 -- should result in a data type mismatch.
---
--- MUST_WORK_TEST
-if (0 > 0)
- then
-    --Tarantoool: issues submitted #2315
-    test:do_catchsql_test(
-        "intpkey-1.13.1",
-        [[
-            INSERT INTO t1 VALUES('x','y','z');
-        ]], {
-            -- <intpkey-1.13.1>
-            1, "datatype mismatch"
-            -- </intpkey-1.13.1>
-        })
+test:do_catchsql_test(
+    "intpkey-1.13.1",
+    [[
+        INSERT INTO t1 VALUES('x','y','z');
+    ]], {
+        -- <intpkey-1.13.1>
+        1, "Type mismatch: can not convert 'x' to integer"
+        -- </intpkey-1.13.1>
+    })
 
-    test:do_catchsql_test(
-        "intpkey-1.13.2",
-        [[
-            INSERT INTO t1 VALUES('','y','z');
-        ]], {
-            -- <intpkey-1.13.2>
-            1, "datatype mismatch"
-            -- </intpkey-1.13.2>
-        })
+test:do_catchsql_test(
+    "intpkey-1.13.2",
+    [[
+        INSERT INTO t1 VALUES('','y','z');
+    ]], {
+        -- <intpkey-1.13.2>
+        1, "Type mismatch: can not convert '' to integer"
+        -- </intpkey-1.13.2>
+    })
 
-    test:do_catchsql_test(
-        "intpkey-1.14",
-        [[
-            INSERT INTO t1 VALUES(3.4,'y','z');
-        ]], {
-            -- <intpkey-1.14>
-            1, "datatype mismatch"
-            -- </intpkey-1.14>
-        })
+-- test:do_catchsql_test(
+--     "intpkey-1.14",
+--     [[
+--         INSERT INTO t1 VALUES(3.4,'y','z');
+--     ]], {
+--         -- <intpkey-1.14>
+--         1, "datatype mismatch"
+--         -- </intpkey-1.14>
+--     })
 
-end
 test:do_catchsql_test(
     "intpkey-1.15",
     [[
@@ -796,32 +790,26 @@ test:do_execsql_test(
         -- </intpkey-13.2>
     })
 
--- MUST_WORK_TEST
-if (0 > 0) then
-    -- Tarantool: issue submitted #2315
-    test:do_catchsql_test(
-        "intpkey-13.3",
-        [[
-            INSERT INTO t1 VALUES('1.5',3,4);
-        ]], {
-            -- <intpkey-13.3>
-            1, "datatype mismatch"
-            -- </intpkey-13.3>
-        })
+test:do_catchsql_test(
+    "intpkey-13.3",
+    [[
+        INSERT INTO t1 VALUES('1.5',3,4);
+    ]], {
+        -- <intpkey-13.3>
+        1, "Type mismatch: can not convert '1.5' to integer"
+        -- </intpkey-13.3>
+    })
 
-    test:do_catchsql_test(
-        "intpkey-13.4",
-        [[
-            INSERT INTO t1 VALUES(x'123456',3,4);
-        ]], {
-            -- <intpkey-13.4>
-            1, "datatype mismatch"
-            -- </intpkey-13.4>
-        })
+test:do_catchsql_test(
+    "intpkey-13.4",
+    [[
+        INSERT INTO t1 VALUES(x'123456',3,4);
+    ]], {
+        -- <intpkey-13.4>
+        1, "Type mismatch: can not convert '\x124V' to integer"
+        -- </intpkey-13.4>
+    })
 
-
-
-end
 test:do_catchsql_test(
     "intpkey-13.5",
     [[
