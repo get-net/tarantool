@@ -1301,30 +1301,13 @@ extern const int sqlone;
 #define SQL_DYNAMIC   ((sql_destructor_type)sqlMallocSize)
 
 /*
- * When sql_OMIT_WSD is defined, it means that the target platform does
- * not support Writable Static Data (WSD) such as global and static variables.
- * All variables must either be on the stack or dynamically allocated from
- * the heap.  When WSD is unsupported, the variable declarations scattered
- * throughout the sql code must become constants instead.  The sql_WSD
- * macro is used for this purpose.  And instead of referencing the variable
- * directly, we use its constant as a key to lookup the run-time allocated
- * buffer that holds real variable.  The constant is also the initializer
- * for the run-time allocated buffer.
- *
- * In the usual case where WSD is supported, the sql_WSD and GLOBAL
- * macros become no-ops and have zero performance impact.
+ * The usual case where Writable Static Data (WSD) is supported,
+ * the sql_WSD and GLOBAL macros become no-ops and have zero
+ * performance impact.
  */
-#ifdef SQL_OMIT_WSD
-#define SQL_WSD const
-#define GLOBAL(t,v) (*(t*)sql_wsd_find((void*)&(v), sizeof(v)))
-#define sqlGlobalConfig GLOBAL(struct sqlConfig, sqlConfig)
-int sql_wsd_init(int N, int J);
-void *sql_wsd_find(void *K, int L);
-#else
 #define SQL_WSD
 #define GLOBAL(t,v) v
 #define sqlGlobalConfig sqlConfig
-#endif
 
 /*
  * The following macros are used to suppress compiler warnings and to
@@ -4567,9 +4550,7 @@ extern const unsigned char sqlCtypeMap[];
 extern const Token sqlIntTokens[];
 extern SQL_WSD struct sqlConfig sqlConfig;
 extern FuncDefHash sqlBuiltinFunctions;
-#ifndef SQL_OMIT_WSD
 extern int sqlPendingByte;
-#endif
 #endif
 
 /**

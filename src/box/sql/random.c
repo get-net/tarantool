@@ -62,13 +62,7 @@ sql_randomness(int N, void *pBuf)
 	 * case where writable static data is supported, wsdPrng can refer directly
 	 * to the "sqlPrng" state vector declared above.
 	 */
-#ifdef SQL_OMIT_WSD
-	struct sqlPrngType *p =
-	    &GLOBAL(struct sqlPrngType, sqlPrng);
-#define wsdPrng p[0]
-#else
 #define wsdPrng sqlPrng
-#endif
 
 #ifndef SQL_OMIT_AUTOINIT
 	if (sql_initialize())

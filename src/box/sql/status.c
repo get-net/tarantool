@@ -54,18 +54,12 @@ static SQL_WSD struct sqlStatType {
 
 
 /* The "wsdStat" macro will resolve to the status information
- * state vector.  If writable static data is unsupported on the target,
- * we have to locate the state vector at run-time.  In the more common
- * case where writable static data is supported, wsdStat can refer directly
- * to the "sqlStat" state vector declared above.
+ * state vector. In the common case where writable static data is
+ * supported, wsdStat can refer directly  to the "sqlStat" state
+ * vector declared above.
  */
-#ifdef SQL_OMIT_WSD
-#define wsdStatInit  sqlStatType *x = &GLOBAL(sqlStatType,sqlStat)
-#define wsdStat x[0]
-#else
 #define wsdStatInit
 #define wsdStat sqlStat
-#endif
 
 /*
  * Return the current value of a status parameter.

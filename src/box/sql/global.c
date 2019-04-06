@@ -236,9 +236,7 @@ FuncDefHash sqlBuiltinFunctions;
  * Changing the pending byte during operation will result in undefined
  * and incorrect behavior.
  */
-#ifndef SQL_OMIT_WSD
 int sqlPendingByte = 0x40000000;
-#endif
 
 #include "opcodes.h"
 /*

@@ -120,13 +120,6 @@ sql_initialize(void)
 {
 	int rc = SQL_OK;
 
-#ifdef SQL_OMIT_WSD
-	rc = sql_wsd_init(4096, 24);
-	if (rc != SQL_OK) {
-		return rc;
-	}
-#endif
-
 	/* If the following assert() fails on some obscure processor/compiler
 	 * combination, the work-around is to set the correct pointer
 	 * size at compile-time using -DSQL_PTRSIZE=n compile-time option
@@ -212,13 +205,6 @@ sql_initialize(void)
 int
 sql_shutdown(void)
 {
-#ifdef SQL_OMIT_WSD
-	int rc = sql_wsd_init(4096, 24);
-	if (rc != SQL_OK) {
-		return rc;
-	}
-#endif
-
 	if (sqlGlobalConfig.isInit) {
 #ifdef SQL_EXTRA_SHUTDOWN
 		void SQL_EXTRA_SHUTDOWN(void);
@@ -1573,13 +1559,11 @@ sql_test_control(int op, ...)
 		 */
 	case SQL_TESTCTRL_PENDING_BYTE:{
 			rc = PENDING_BYTE;
-#ifndef SQL_OMIT_WSD
 			{
 				unsigned int newVal = va_arg(ap, unsigned int);
 				if (newVal)
 					sqlPendingByte = newVal;
 			}
-#endif
 			break;
 		}
 
