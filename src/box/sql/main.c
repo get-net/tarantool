@@ -119,9 +119,6 @@ int
 sql_initialize(void)
 {
 	int rc = SQL_OK;
-#ifdef SQL_EXTRA_INIT
-	int bRunExtraInit = 0;	/* Extra initialization needed */
-#endif
 
 #ifdef SQL_OMIT_WSD
 	rc = sql_wsd_init(4096, 24);
@@ -184,9 +181,6 @@ sql_initialize(void)
 		}
 		if (rc == SQL_OK) {
 			sqlGlobalConfig.isInit = 1;
-#ifdef SQL_EXTRA_INIT
-			bRunExtraInit = 1;
-#endif
 		}
 		sqlGlobalConfig.inProgress = 0;
 	}
@@ -208,16 +202,6 @@ sql_initialize(void)
 		assert(sqlIsNaN(y));
 	}
 #endif
-#endif
-
-	/* Do extra initialization steps requested by the SQL_EXTRA_INIT
-	 * compile-time option.
-	 */
-#ifdef SQL_EXTRA_INIT
-	if (bRunExtraInit) {
-		int SQL_EXTRA_INIT(const char *);
-		rc = SQL_EXTRA_INIT(0);
-	}
 #endif
 
 	return rc;
