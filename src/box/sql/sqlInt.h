@@ -945,18 +945,6 @@ sql_bind_parameter_lindex(sql_stmt * pStmt, const char *zName,
  * If compiling for a processor that lacks floating point support,
  * substitute integer for floating-point
  */
-#ifdef SQL_OMIT_FLOATING_POINT
-#define double sql_int64
-#define float sql_int64
-#define LONGDOUBLE_TYPE sql_int64
-#ifndef SQL_BIG_DBL
-#define SQL_BIG_DBL (((sql_int64)1)<<50)
-#endif
-#define SQL_OMIT_DATETIME_FUNCS 1
-#define SQL_OMIT_TRACE 1
-#undef SQL_MIXED_ENDIAN_64BIT_FLOAT
-#undef SQL_HAVE_ISNAN
-#endif
 #ifndef SQL_BIG_DBL
 #define SQL_BIG_DBL (1e99)
 #endif
@@ -3097,11 +3085,7 @@ void sqlStatusUp(int, int);
 void sqlStatusDown(int, int);
 void sqlStatusHighwater(int, int);
 
-#ifndef SQL_OMIT_FLOATING_POINT
 int sqlIsNaN(double);
-#else
-#define sqlIsNaN(X)  0
-#endif
 
 /*
  * An instance of the following structure holds information about SQL

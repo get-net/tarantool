@@ -3059,7 +3059,7 @@ serialGet(const unsigned char *buf,	/* Buffer to deserialize from */
 		/* EVIDENCE-OF: R-57343-49114 Value is a big-endian IEEE 754-2008 64-bit
 		 * floating point number.
 		 */
-#if !defined(NDEBUG) && !defined(SQL_OMIT_FLOATING_POINT)
+#if !defined(NDEBUG)
 		/* Verify that integers and floating point values use the same
 		 * byte order.  Or, that if SQL_MIXED_ENDIAN_64BIT_FLOAT is
 		 * defined that 64-bit floating point values really are mixed

@@ -77,7 +77,6 @@ int
 }
 #endif
 
-#ifndef SQL_OMIT_FLOATING_POINT
 /*
  * Return true if the floating point value is Not a Number (NaN).
  *
@@ -114,7 +113,6 @@ sqlIsNaN(double x)
 	testcase(rc);
 	return rc;
 }
-#endif				/* SQL_OMIT_FLOATING_POINT */
 
 /*
  * Compute a string length that is limited to what can be stored in
@@ -413,7 +411,6 @@ sql_strnicmp(const char *zLeft, const char *zRight, int N)
 int
 sqlAtoF(const char *z, double *pResult, int length)
 {
-#ifndef SQL_OMIT_FLOATING_POINT
 	int incr = 1; // UTF-8
 	const char *zEnd = z + length;
 	/* sign * significand * (10 ^ (esign * exponent)) */
@@ -594,9 +591,6 @@ sqlAtoF(const char *z, double *pResult, int length)
 
 	/* return true if number and no extra non-whitespace chracters after */
 	return z == zEnd && nDigits > 0 && eValid && nonNum == 0;
-#else
-	return !sqlAtoi64(z, pResult, length);
-#endif				/* SQL_OMIT_FLOATING_POINT */
 }
 
 /*

@@ -178,7 +178,6 @@ sql_initialize(void)
 	 * reason.  So we run it once during initialization.
 	 */
 #ifndef NDEBUG
-#ifndef SQL_OMIT_FLOATING_POINT
 	/* This section of code's only "output" is via assert() statements. */
 	if (rc == SQL_OK) {
 		u64 x = (((u64) 1) << 63) - 1;
@@ -188,7 +187,6 @@ sql_initialize(void)
 		memcpy(&y, &x, 8);
 		assert(sqlIsNaN(y));
 	}
-#endif
 #endif
 
 	return rc;
