@@ -1083,11 +1083,6 @@ sql_vmprintf(const char *zFormat, va_list ap)
 	char zBase[SQL_PRINT_BUF_SIZE];
 	StrAccum acc;
 
-#ifdef SQL_ENABLE_API_ARMOR
-	if (zFormat == 0) {
-		return 0;
-	}
-#endif
 #ifndef SQL_OMIT_AUTOINIT
 	if (sql_initialize())
 		return 0;
@@ -1136,13 +1131,6 @@ sql_vsnprintf(int n, char *zBuf, const char *zFormat, va_list ap)
 	StrAccum acc;
 	if (n <= 0)
 		return zBuf;
-#ifdef SQL_ENABLE_API_ARMOR
-	if (zBuf == 0 || zFormat == 0) {
-		if (zBuf)
-			zBuf[0] = 0;
-		return zBuf;
-	}
-#endif
 	sqlStrAccumInit(&acc, 0, zBuf, n, 0);
 	sqlVXPrintf(&acc, zFormat, ap);
 	zBuf[acc.nChar] = 0;

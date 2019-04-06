@@ -650,11 +650,6 @@ void
 sql_progress_handler(sql * db,
 			 int nOps, int (*xProgress) (void *), void *pArg)
 {
-#ifdef SQL_ENABLE_API_ARMOR
-	if (!sqlSafetyCheckOk(db)) {
-		return;
-	}
-#endif
 	if (nOps > 0) {
 		db->xProgress = xProgress;
 		db->nProgressOps = (unsigned)nOps;
@@ -673,12 +668,6 @@ sql_progress_handler(sql * db,
 void
 sql_interrupt(sql * db)
 {
-#ifdef SQL_ENABLE_API_ARMOR
-	if (!sqlSafetyCheckOk(db)
-	    && (db == 0 || db->magic != SQL_MAGIC_ZOMBIE)) {
-		return;
-	}
-#endif
 	db->u1.isInterrupted = 1;
 }
 
@@ -775,11 +764,6 @@ sql_create_function_v2(sql * db,
 	int rc = SQL_ERROR;
 	FuncDestructor *pArg = 0;
 
-#ifdef SQL_ENABLE_API_ARMOR
-	if (!sqlSafetyCheckOk(db)) {
-		return SQL_MISUSE;
-	}
-#endif
 	if (xDestroy) {
 		pArg =
 		    (FuncDestructor *) sqlDbMallocZero(db,
@@ -814,11 +798,6 @@ sql_trace_v2(sql * db,		/* Trace this connection */
 		 int (*xTrace) (unsigned, void *, void *, void *),	/* Callback to invoke */
 		 void *pArg)		/* Context */
 {
-#ifdef SQL_ENABLE_API_ARMOR
-	if (!sqlSafetyCheckOk(db)) {
-		return SQL_MISUSE;
-	}
-#endif
 	if (mTrace == 0)
 		xTrace = 0;
 	if (xTrace == 0)
@@ -843,11 +822,6 @@ sql_commit_hook(sql * db,	/* Attach the hook to this database */
 {
 	void *pOld;
 
-#ifdef SQL_ENABLE_API_ARMOR
-	if (!sqlSafetyCheckOk(db)) {
-		return 0;
-	}
-#endif
 	pOld = db->pCommitArg;
 	db->xCommitCallback = xCallback;
 	db->pCommitArg = pArg;
@@ -866,11 +840,6 @@ sql_update_hook(sql * db,	/* Attach the hook to this database */
 {
 	void *pRet;
 
-#ifdef SQL_ENABLE_API_ARMOR
-	if (!sqlSafetyCheckOk(db)) {
-		return 0;
-	}
-#endif
 	pRet = db->pUpdateArg;
 	db->xUpdateCallback = xCallback;
 	db->pUpdateArg = pArg;
@@ -888,11 +857,6 @@ sql_rollback_hook(sql * db,	/* Attach the hook to this database */
 {
 	void *pRet;
 
-#ifdef SQL_ENABLE_API_ARMOR
-	if (!sqlSafetyCheckOk(db)) {
-		return 0;
-	}
-#endif
 	pRet = db->pRollbackArg;
 	db->xRollbackCallback = xCallback;
 	db->pRollbackArg = pArg;
@@ -1102,12 +1066,6 @@ int
 sql_limit(sql * db, int limitId, int newLimit)
 {
 	int oldLimit;
-
-#ifdef SQL_ENABLE_API_ARMOR
-	if (!sqlSafetyCheckOk(db)) {
-		return -1;
-	}
-#endif
 
 	/* EVIDENCE-OF: R-30189-54097 For each limit category SQL_LIMIT_NAME
 	 * there is a hard upper bound set at compile-time by a C preprocessor
@@ -1449,10 +1407,6 @@ sql_init_db(sql **out_db)
 	sql *db;
 	int rc;			/* Return code */
 
-#ifdef SQL_ENABLE_API_ARMOR
-	if (ppDb == 0)
-		return SQL_MISUSE;
-#endif
 #ifndef SQL_OMIT_AUTOINIT
 	rc = sql_initialize();
 	if (rc)
@@ -1570,10 +1524,6 @@ opendb_out:
 int
 sql_extended_result_codes(sql * db, int onoff)
 {
-#ifdef SQL_ENABLE_API_ARMOR
-	if (!sqlSafetyCheckOk(db))
-		return SQL_MISUSE;
-#endif
 	db->errMask = onoff ? 0xffffffff : 0xff;
 	return SQL_OK;
 }

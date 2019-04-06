@@ -261,10 +261,6 @@ sql_vfs_register(sql_vfs * pVfs, int makeDflt)
 	if (rc)
 		return rc;
 #endif
-#ifdef SQL_ENABLE_API_ARMOR
-	if (pVfs == 0)
-		return SQL_MISUSE;
-#endif
 
 	vfsUnlink(pVfs);
 	if (makeDflt || vfsList == 0) {
