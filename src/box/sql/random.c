@@ -64,11 +64,6 @@ sql_randomness(int N, void *pBuf)
 	 */
 #define wsdPrng sqlPrng
 
-#ifndef SQL_OMIT_AUTOINIT
-	if (sql_initialize())
-		return;
-#endif
-
 	if (N <= 0 || pBuf == 0) {
 		wsdPrng.isInit = 0;
 		return;

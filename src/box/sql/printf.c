@@ -1068,11 +1068,6 @@ sql_vmprintf(const char *zFormat, va_list ap)
 	char *z;
 	char zBase[SQL_PRINT_BUF_SIZE];
 	StrAccum acc;
-
-#ifndef SQL_OMIT_AUTOINIT
-	if (sql_initialize())
-		return 0;
-#endif
 	sqlStrAccumInit(&acc, 0, zBase, sizeof(zBase), SQL_MAX_LENGTH);
 	sqlVXPrintf(&acc, zFormat, ap);
 	z = sqlStrAccumFinish(&acc);
@@ -1088,10 +1083,6 @@ sql_mprintf(const char *zFormat, ...)
 {
 	va_list ap;
 	char *z;
-#ifndef SQL_OMIT_AUTOINIT
-	if (sql_initialize())
-		return 0;
-#endif
 	va_start(ap, zFormat);
 	z = sql_vmprintf(zFormat, ap);
 	va_end(ap);

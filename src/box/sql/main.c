@@ -89,9 +89,7 @@ char *sql_data_directory = 0;
  *
  * This routine must be called to initialize the memory allocation,
  * and VFS subsystems prior to doing any serious work with
- * sql.  But as long as you do not compile with SQL_OMIT_AUTOINIT
- * this routine will be called automatically by key routines such as
- * sql_open().
+ * sql.
  *
  * This routine is a no-op except on its very first call for the process,
  * or for the first call after a call to sql_shutdown.
@@ -1352,11 +1350,9 @@ sql_init_db(sql **out_db)
 	sql *db;
 	int rc;			/* Return code */
 
-#ifndef SQL_OMIT_AUTOINIT
 	rc = sql_initialize();
 	if (rc)
 		return rc;
-#endif
 
 	/* Allocate the sql data structure */
 	db = sqlMallocZero(sizeof(sql));
