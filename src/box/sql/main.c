@@ -167,12 +167,6 @@ sql_initialize(void)
 	if (sqlGlobalConfig.isInit == 0
 	    && sqlGlobalConfig.inProgress == 0) {
 		sqlGlobalConfig.inProgress = 1;
-#ifdef SQL_ENABLE_SQLLOG
-		{
-			extern void sql_init_sqllog(void);
-			sql_init_sqllog();
-		}
-#endif
 		memset(&sqlBuiltinFunctions, 0,
 		       sizeof(sqlBuiltinFunctions));
 		sqlRegisterBuiltinFunctions();
@@ -337,16 +331,6 @@ sql_config(int op, ...)
 			sqlGlobalConfig.bUseCis = va_arg(ap, int);
 			break;
 		}
-
-#ifdef SQL_ENABLE_SQLLOG
-	case SQL_CONFIG_SQLLOG:{
-			typedef void (*SQLLOGFUNC_t) (void *, sql *,
-						      const char *, int);
-			sqlGlobalConfig.xSqllog = va_arg(ap, SQLLOGFUNC_t);
-			sqlGlobalConfig.pSqllogArg = va_arg(ap, void *);
-			break;
-		}
-#endif
 
 	case SQL_CONFIG_MMAP_SIZE:{
 			/* EVIDENCE-OF: R-58063-38258 SQL_CONFIG_MMAP_SIZE takes two 64-bit
@@ -540,13 +524,6 @@ sqlClose(sql * db, int forceZombie)
 				    "statements");
 		return SQL_BUSY;
 	}
-#ifdef SQL_ENABLE_SQLLOG
-	if (sqlGlobalConfig.xSqllog) {
-		/* Closing the handle. Fourth parameter is passed the value 2. */
-		sqlGlobalConfig.xSqllog(sqlGlobalConfig.pSqllogArg, db,
-					    0, 2);
-	}
-#endif
 
 	/* Convert the connection into a zombie and then close it.
 	 */
@@ -1491,13 +1468,6 @@ opendb_out:
 		db->magic = SQL_MAGIC_SICK;
 
 	*out_db = db;
-#ifdef SQL_ENABLE_SQLLOG
-	if (sqlGlobalConfig.xSqllog) {
-		/* Opening a db handle. Fourth parameter is passed 0. */
-		void *pArg = sqlGlobalConfig.pSqllogArg;
-		sqlGlobalConfig.xSqllog(pArg, db, zFilename, 0);
-	}
-#endif
 
 	return rc;
 }

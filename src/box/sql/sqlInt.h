@@ -2930,10 +2930,6 @@ struct sqlConfig {
 	int isMallocInit;	/* True after malloc is initialized */
 	void (*xLog) (void *, int, const char *);	/* Function for logging */
 	void *pLogArg;		/* First argument to xLog() */
-#ifdef SQL_ENABLE_SQLLOG
-	void (*xSqllog) (void *, sql *, const char *, int);
-	void *pSqllogArg;
-#endif
 #ifdef SQL_VDBE_COVERAGE
 	/* The following callback (if not NULL) is invoked on every VDBE branch
 	 * operation.  Set the callback using sql_TESTCTRL_VDBE_COVERAGE.

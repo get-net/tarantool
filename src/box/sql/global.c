@@ -200,10 +200,6 @@ SQL_WSD struct sqlConfig sqlConfig = {
 	0,			/* isMallocInit */
 	0,			/* xLog */
 	0,			/* pLogArg */
-#ifdef SQL_ENABLE_SQLLOG
-	0,			/* xSqllog */
-	0,			/* pSqllogArg */
-#endif
 #ifdef SQL_VDBE_COVERAGE
 	0,			/* xVdbeBranch */
 	0,			/* pVbeBranchArg */
