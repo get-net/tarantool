@@ -3381,9 +3381,6 @@ int
 vdbe_emit_open_cursor(struct Parse *parse, int cursor, int index_id,
 		      struct space *space);
 
-int sqlParseUri(const char *, const char *, unsigned int *,
-		    sql_vfs **, char **, char **);
-
 #ifdef SQL_UNTESTABLE
 #define sqlFaultSim(X) SQL_OK
 #else
