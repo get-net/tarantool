@@ -395,28 +395,6 @@ sqlErrStr(int rc)
 	return zErr;
 }
 
-#ifndef SQL_OMIT_PROGRESS_CALLBACK
-/*
- * This routine sets the progress callback for an Sqlite database to the
- * given callback function with the given argument. The progress callback will
- * be invoked every nOps opcodes.
- */
-void
-sql_progress_handler(sql * db,
-			 int nOps, int (*xProgress) (void *), void *pArg)
-{
-	if (nOps > 0) {
-		db->xProgress = xProgress;
-		db->nProgressOps = (unsigned)nOps;
-		db->pProgressArg = pArg;
-	} else {
-		db->xProgress = 0;
-		db->nProgressOps = 0;
-		db->pProgressArg = 0;
-	}
-}
-#endif
-
 /*
  * This function is exactly the same as sql_create_function(), except
  * that it is designed to be called by internal code. The difference is
