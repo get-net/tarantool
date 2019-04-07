@@ -794,16 +794,6 @@ opendb_out:
 }
 
 /*
- * Enable or disable the extended result codes.
- */
-int
-sql_extended_result_codes(sql * db, int onoff)
-{
-	db->errMask = onoff ? 0xffffffff : 0xff;
-	return SQL_OK;
-}
-
-/*
  * This is a utility routine, useful to VFS implementations, that checks
  * to see if a database file was a URI that contained a specific query
  * parameter, and if so obtains the value of the query parameter.
