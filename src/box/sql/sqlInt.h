@@ -866,9 +866,6 @@ sql_vfs_register(sql_vfs *, int makeDflt);
 #define SQL_STMTSTATUS_AUTOINDEX         3
 #define SQL_STMTSTATUS_VM_STEP           4
 
-void
-sql_interrupt(sql *);
-
 int
 sql_bind_blob(sql_stmt *, int, const void *,
 		  int n, void (*)(void *));

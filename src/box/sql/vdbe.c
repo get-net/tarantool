@@ -743,18 +743,6 @@ int sqlVdbeExec(Vdbe *p)
 #endif
 
 
-		/* Check to see if we need to simulate an interrupt.  This only happens
-		 * if we have a special test build.
-		 */
-#ifdef SQL_TEST
-		if (sql_interrupt_count>0) {
-			sql_interrupt_count--;
-			if (sql_interrupt_count==0) {
-				sql_interrupt(db);
-			}
-		}
-#endif
-
 		/* Sanity checking on other operands */
 #ifdef SQL_DEBUG
 		{

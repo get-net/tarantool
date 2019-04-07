@@ -418,15 +418,6 @@ sql_progress_handler(sql * db,
 #endif
 
 /*
- * Cause any pending operation to stop at its earliest opportunity.
- */
-void
-sql_interrupt(sql * db)
-{
-	db->u1.isInterrupted = 1;
-}
-
-/*
  * This function is exactly the same as sql_create_function(), except
  * that it is designed to be called by internal code. The difference is
  * that if a malloc() fails in sql_create_function(), an error code
