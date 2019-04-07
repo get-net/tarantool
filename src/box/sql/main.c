@@ -40,10 +40,6 @@
 #include "version.h"
 #include "box/session.h"
 
-#ifdef SQL_ENABLE_JSON1
-int sqlJson1Init(sql *);
-#endif
-
 #if !defined(SQL_OMIT_TRACE) && defined(SQL_ENABLE_IOTRACE)
 /*
  * If the following function pointer is not NULL and if
@@ -1370,12 +1366,6 @@ sql_init_db(sql **out_db)
 	sqlError(db, SQL_OK);
 	sqlRegisterPerConnectionBuiltinFunctions(db);
 	rc = sql_errcode(db);
-
-#ifdef SQL_ENABLE_JSON1
-	if (!db->mallocFailed && rc == SQL_OK) {
-		rc = sqlJson1Init(db);
-	}
-#endif
 
 	if (rc)
 		sqlError(db, rc);
