@@ -4500,11 +4500,6 @@ int sqlAddInt64(i64 *, i64);
 int sqlSubInt64(i64 *, i64);
 int sqlMulInt64(i64 *, i64);
 int sqlAbsInt32(int);
-#ifdef SQL_ENABLE_8_3_NAMES
-void sqlFileSuffix3(const char *, char *);
-#else
-#define sqlFileSuffix3(X,Y)
-#endif
 u8 sqlGetBoolean(const char *z, u8);
 
 const void *sqlValueText(sql_value *);

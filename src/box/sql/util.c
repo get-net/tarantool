@@ -1357,41 +1357,6 @@ sqlAbsInt32(int x)
 	return -x;
 }
 
-#ifdef SQL_ENABLE_8_3_NAMES
-/*
- * If SQL_ENABLE_8_3_NAMES is set at compile-time and if the database
- * filename in zBaseFilename is a URI with the "8_3_names=1" parameter and
- * if filename in z[] has a suffix (a.k.a. "extension") that is longer than
- * three characters, then shorten the suffix on z[] to be the last three
- * characters of the original suffix.
- *
- * If SQL_ENABLE_8_3_NAMES is set to 2 at compile-time, then always
- * do the suffix shortening regardless of URI parameter.
- *
- * Examples:
- *
- *     test.db-journal    =>   test.nal
- *     test.db-wal        =>   test.wal
- *     test.db-shm        =>   test.shm
- *     test.db-mj7f3319fa =>   test.9fa
- */
-void
-sqlFileSuffix3(const char *zBaseFilename, char *z)
-{
-#if SQL_ENABLE_8_3_NAMES<2
-	if (sql_uri_boolean(zBaseFilename, "8_3_names", 0))
-#endif
-	{
-		int i, sz;
-		sz = sqlStrlen30(z);
-		for (i = sz - 1; i > 0 && z[i] != '/' && z[i] != '.'; i--) {
-		}
-		if (z[i] == '.' && ALWAYS(sz > i + 4))
-			memmove(&z[i + 1], &z[sz - 3], 4);
-	}
-}
-#endif
-
 /*
  * Find (an approximate) sum of two LogEst values.  This computation is
  * not a simple "+" operator because LogEst is stored as a logarithmic
