@@ -40,9 +40,6 @@
 #include "version.h"
 #include "box/session.h"
 
-#ifdef SQL_ENABLE_RTREE
-#include "rtree.h"
-#endif
 #ifdef SQL_ENABLE_JSON1
 int sqlJson1Init(sql *);
 #endif
@@ -1373,12 +1370,6 @@ sql_init_db(sql **out_db)
 	sqlError(db, SQL_OK);
 	sqlRegisterPerConnectionBuiltinFunctions(db);
 	rc = sql_errcode(db);
-
-#ifdef SQL_ENABLE_RTREE
-	if (!db->mallocFailed && rc == SQL_OK) {
-		rc = sqlRtreeInit(db);
-	}
-#endif
 
 #ifdef SQL_ENABLE_JSON1
 	if (!db->mallocFailed && rc == SQL_OK) {
