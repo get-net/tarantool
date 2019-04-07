@@ -43,9 +43,6 @@
 #ifdef SQL_ENABLE_RTREE
 #include "rtree.h"
 #endif
-#ifdef SQL_ENABLE_ICU
-#include "sqlicu.h"
-#endif
 #ifdef SQL_ENABLE_JSON1
 int sqlJson1Init(sql *);
 #endif
@@ -1376,12 +1373,6 @@ sql_init_db(sql **out_db)
 	sqlError(db, SQL_OK);
 	sqlRegisterPerConnectionBuiltinFunctions(db);
 	rc = sql_errcode(db);
-
-#ifdef SQL_ENABLE_ICU
-	if (!db->mallocFailed && rc == SQL_OK) {
-		rc = sqlIcuInit(db);
-	}
-#endif
 
 #ifdef SQL_ENABLE_RTREE
 	if (!db->mallocFailed && rc == SQL_OK) {
