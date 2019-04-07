@@ -819,29 +819,3 @@ sql_uri_parameter(const char *zFilename, const char *zParam)
 	}
 	return 0;
 }
-
-/*
- * Return a boolean value for a query parameter.
- */
-int
-sql_uri_boolean(const char *zFilename, const char *zParam, int bDflt)
-{
-	const char *z = sql_uri_parameter(zFilename, zParam);
-	bDflt = bDflt != 0;
-	return z ? sqlGetBoolean(z, bDflt) : bDflt;
-}
-
-/*
- * Return a 64-bit integer value for a query parameter.
- */
-sql_int64
-sql_uri_int64(const char *zFilename,	/* Filename as passed to xOpen */
-		  const char *zParam,	/* URI parameter sought */
-		  sql_int64 bDflt)	/* return if parameter is missing */
-{
-	const char *z = sql_uri_parameter(zFilename, zParam);
-	int64_t v;
-	if (z != NULL && sql_dec_or_hex_to_i64(z, &v) == 0)
-		bDflt = v;
-	return bDflt;
-}

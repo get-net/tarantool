@@ -830,10 +830,6 @@ sql_limit(sql *, int id, int newVal);
 #define SQL_SYNC_FULL          0x00003
 #define SQL_SYNC_DATAONLY      0x00010
 
-int
-sql_uri_boolean(const char *zFile,
-		    const char *zParam, int bDefault);
-
 extern char *
 sql_temp_directory;
 
