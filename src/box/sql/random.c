@@ -114,9 +114,6 @@ sql_randomness(int N, void *pBuf)
  * PRNG and restore the PRNG to its saved state at a later time, or
  * to reset the PRNG to its initial state.  These routines accomplish
  * those tasks.
- *
- * The sql_test_control() interface calls these routines to
- * control the PRNG.
  */
 static SQL_WSD struct sqlPrngType sqlSavedPrng;
 void

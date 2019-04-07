@@ -1501,11 +1501,7 @@ struct sql {
 #define SQL_DeferFKs       0x02000000	/* Defer all FK constraints */
 #define SQL_VdbeEQP        0x08000000	/* Debug EXPLAIN QUERY PLAN */
 
-/*
- * Bits of the sql.dbOptFlags field that are used by the
- * sql_test_control(sql_TESTCTRL_OPTIMIZATIONS,...) interface to
- * selectively disable various optimizations.
- */
+/* Bits of the sql.dbOptFlags field. */
 #define SQL_QueryFlattener 0x0001	/* Query flattening */
 #define SQL_ColumnCache    0x0002	/* Column cache */
 #define SQL_GroupByOrder   0x0004	/* GROUPBY cover of ORDERBY */
@@ -2908,24 +2904,6 @@ struct sqlConfig {
 	int bLocaltimeFault;	/* True to fail localtime() calls */
 	int iOnceResetThreshold;	/* When to reset OP_Once counters */
 };
-
-/*
- * This macro is used inside of assert() statements to indicate that
- * the assert is only valid on a well-formed database.  Instead of:
- *
- *     assert( X );
- *
- * One writes:
- *
- *     assert( X || CORRUPT_DB );
- *
- * CORRUPT_DB is true during normal operation.  CORRUPT_DB does not indicate
- * that the database is definitely corrupt, only that it might be corrupt.
- * For most test cases, CORRUPT_DB is set to false using a special
- * sql_test_control().  This enables assert() statements to prove
- * things that are always true for well-formed databases.
- */
-#define CORRUPT_DB  (sqlConfig.neverCorrupt==0)
 
 /*
  * Context pointer passed down through the tree-walk.

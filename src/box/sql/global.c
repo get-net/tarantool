@@ -228,8 +228,7 @@ FuncDefHash sqlBuiltinFunctions;
  * During testing, it is often desirable to move the pending byte to
  * a different position in the file.  This allows code that has to
  * deal with the pending byte to run on files that are much smaller
- * than 1 GiB.  The sql_test_control() interface can be used to
- * move the pending byte.
+ * than 1 GiB.
  *
  * IMPORTANT:  Changing the pending byte to any value other than
  * 0x40000000 results in an incompatible database file format!
