@@ -3008,15 +3008,6 @@ struct TreeView {
 }
 
 /*
- * FTS4 is really an extension for FTS3.  It is enabled using the
- * sql_ENABLE_FTS3 macro.  But to avoid confusion we also call
- * the sql_ENABLE_FTS4 macro to serve as an alias for sql_ENABLE_FTS3.
- */
-#if defined(SQL_ENABLE_FTS4) && !defined(SQL_ENABLE_FTS3)
-#define SQL_ENABLE_FTS3 1
-#endif
-
-/*
  * The following macros mimic the standard library functions toupper(),
  * isspace(), isalnum(), isdigit() and isxdigit(), respectively. The
  * sql versions only work for ASCII characters, regardless of locale.

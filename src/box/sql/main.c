@@ -40,9 +40,6 @@
 #include "version.h"
 #include "box/session.h"
 
-#ifdef SQL_ENABLE_FTS3
-#include "fts3.h"
-#endif
 #ifdef SQL_ENABLE_RTREE
 #include "rtree.h"
 #endif
@@ -51,9 +48,6 @@
 #endif
 #ifdef SQL_ENABLE_JSON1
 int sqlJson1Init(sql *);
-#endif
-#ifdef SQL_ENABLE_FTS5
-int sqlFts5Init(sql *);
 #endif
 
 #if !defined(SQL_OMIT_TRACE) && defined(SQL_ENABLE_IOTRACE)
@@ -1382,36 +1376,6 @@ sql_init_db(sql **out_db)
 	sqlError(db, SQL_OK);
 	sqlRegisterPerConnectionBuiltinFunctions(db);
 	rc = sql_errcode(db);
-
-#ifdef SQL_ENABLE_FTS5
-	/* Register any built-in FTS5 module before loading the automatic
-	 * extensions. This allows automatic extensions to register FTS5
-	 * tokenizers and auxiliary functions.
-	 */
-	if (!db->mallocFailed && rc == SQL_OK) {
-		rc = sqlFts5Init(db);
-	}
-#endif
-
-#ifdef SQL_ENABLE_FTS1
-	if (!db->mallocFailed) {
-		extern int sqlFts1Init(sql *);
-		rc = sqlFts1Init(db);
-	}
-#endif
-
-#ifdef SQL_ENABLE_FTS2
-	if (!db->mallocFailed && rc == SQL_OK) {
-		extern int sqlFts2Init(sql *);
-		rc = sqlFts2Init(db);
-	}
-#endif
-
-#ifdef SQL_ENABLE_FTS3	/* automatically defined by SQL_ENABLE_FTS4 */
-	if (!db->mallocFailed && rc == SQL_OK) {
-		rc = sqlFts3Init(db);
-	}
-#endif
 
 #ifdef SQL_ENABLE_ICU
 	if (!db->mallocFailed && rc == SQL_OK) {
