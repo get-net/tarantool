@@ -675,9 +675,6 @@ sql_column_name(sql_stmt *, int N);
 const char *
 sql_column_datatype(sql_stmt *, int N);
 
-const char *
-sql_errmsg(sql *);
-
 int
 sql_initialize(void);
 
