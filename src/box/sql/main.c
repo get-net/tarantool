@@ -75,8 +75,7 @@ char *sql_data_directory = 0;
  * and VFS subsystems prior to doing any serious work with
  * sql.
  *
- * This routine is a no-op except on its very first call for the process,
- * or for the first call after a call to sql_shutdown.
+ * This routine is a no-op except on its very first call for the process.
  *
  * The first thread to call this routine runs the initialization to
  * completion.  If subsequent threads call this routine before the first
@@ -172,45 +171,6 @@ sql_initialize(void)
 #endif
 
 	return rc;
-}
-
-/*
- * Undo the effects of sql_initialize().  Must not be called while
- * there are outstanding database connections or memory allocations or
- * while any part of sql is otherwise in use in any thread.  This
- * routine is not threadsafe.  But it is safe to invoke this routine
- * on when sql is already shut down.  If sql is already shut down
- * when this routine is invoked, then this routine is a harmless no-op.
- */
-int
-sql_shutdown(void)
-{
-	if (sqlGlobalConfig.isInit) {
-#ifdef SQL_EXTRA_SHUTDOWN
-		void SQL_EXTRA_SHUTDOWN(void);
-		SQL_EXTRA_SHUTDOWN();
-#endif
-		sql_os_end();
-		sqlGlobalConfig.isInit = 0;
-	}
-	if (sqlGlobalConfig.isMallocInit) {
-		sqlMallocEnd();
-		sqlGlobalConfig.isMallocInit = 0;
-
-#ifndef SQL_OMIT_SHUTDOWN_DIRECTORIES
-		/* The heap subsystem has now been shutdown and these values are supposed
-		 * to be NULL or point to memory that was obtained from sql_malloc(),
-		 * which would rely on that heap subsystem; therefore, make sure these
-		 * values cannot refer to heap memory that was just invalidated when the
-		 * heap subsystem was shutdown.  This is only done if the current call to
-		 * this function resulted in the heap subsystem actually being shutdown.
-		 */
-		sql_data_directory = 0;
-		sql_temp_directory = 0;
-#endif
-	}
-
-	return SQL_OK;
 }
 
 /*
