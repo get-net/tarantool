@@ -784,9 +784,6 @@ sql_status64(int op, sql_int64 * pCurrent,
 		 sql_int64 * pHighwater,
 		 int resetFlag);
 
-int
-sql_config(int, ...);
-
 
 typedef struct sql_io_methods sql_io_methods;
 struct sql_io_methods {
