@@ -1452,10 +1452,6 @@ struct sql {
 	void (*xUpdateCallback) (void *, int, const char *, const char *,
 				 sql_int64);
 	sql_value *pErr;	/* Most recent error message */
-	union {
-		volatile int isInterrupted;	/* True if sql_interrupt has been called */
-		double notUsed1;	/* Spacer */
-	} u1;
 	Lookaside lookaside;	/* Lookaside malloc configuration */
 	Hash aFunc;		/* Hash table of connection functions */
 	int *pnBytesFreed;	/* If not NULL, increment this in DbFree() */
