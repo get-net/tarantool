@@ -274,45 +274,39 @@ struct swim_member {
 	 *                 Dissemination component
 	 *
 	 * Dissemination component sends events. Event is a
-	 * notification about some member state update. We maintain
-	 * a different event type for each significant member
-	 * attribute - status, incarnation, etc to not send entire
+	 * notification about some member state update. The member
+	 * maintains a different event type for each significant
+	 * attribute - status, incarnation, etc not to send entire
 	 * member state each time any member attribute changes.
-	 * The state of an event is stored within
 	 *
-	 * According to SWIM, an event should be sent to
-	 * all members at least once. It'd be silly to continue
-	 * sending an old event if a member attribute has changed
-	 * since the beginning of the round. To this end
-	 * we also maintain TTL (time-to-live) counter
-	 * associated with each event type.
+	 * According to SWIM, an event should be sent to all
+	 * members at least once - for that a TTL (time-to-live)
+	 * counter is maintained for each independent event type.
 	 *
 	 * When a member state changes, the TTL is reset to the
 	 * cluster size. It is then decremented after each send.
 	 * This guarantees that each member state change is sent
 	 * to each SWIM member at least once. If a new event of
 	 * the same type is generated before a round is finished,
-	 * we update the current event object and reset the
-	 * relevant TTL.
+	 * the current event object is updated in place with reset
+	 * of the TTL.
 	 *
 	 * To conclude, TTL works in two ways: to see which
 	 * specific member attribute needs dissemination and to
 	 * track how many cluster members still need to learn
-	 * about the change from us.
+	 * about the change from this instance.
 	 */
-
 	/**
-	 * status_ttl is reset whenever a member status changes.
-	 * We also reset it whenever any other attribute changes,
-	 * to be able to easily track whether we need to send
-	 * any events at all.
-	 * Besides, a dead member can not be removed from the
-	 * member table until its status TTL is 0, so as to allow
-	 * other members learn its dead status.
+	 * General TTL reset each time when any visible member
+	 * attribute is updated. It is always bigger or equal than
+	 * any other TTLs. In addition it helps to keep a dead
+	 * member not dropped until the TTL gets zero so as to
+	 * allow other members to learn the dead status.
 	 */
 	int status_ttl;
 	/**
-	 * All created events are put into a queue sorted by event time.
+	 * All created events are put into a queue sorted by event
+	 * time.
 	 */
 	struct rlist in_event_queue;
 };
@@ -414,10 +408,11 @@ struct swim {
 	 *
 	 *                 Dissemination component
 	 */
-	/** Queue of all members which have dissemination
+	/**
+	 * Queue of all members which have dissemination
 	 * information. A member is added to the queue whenever
 	 * any of its attributes changes, and stays in the queue
-	 * as long as its status_ttl is non-zero.
+	 * as long as the event TTL is non-zero.
 	 */
 	struct rlist event_queue;
 };
@@ -436,12 +431,11 @@ swim_wait_ack(struct swim *swim, struct swim_member *member)
 /**
  * On literally any update of a member it is added to a queue of
  * members to disseminate updates. Regardless of other TTLs, each
- * update also resets status TTL.
- * Status TTL is always greater than any other event-related TTL,
- * so it's sufficient to look at status_ttl alone to see that
- * a member needs information dissemination.
+ * update also resets status TTL. Status TTL is always greater
+ * than any other event-related TTL, so it's sufficient to look at
+ * it alone to see that a member needs information dissemination.
  * The status change itself occupies only 2 bytes in a packet, so
- * it is cheap to to send on any update, while does reduce
+ * it is cheap to send it on any update, while does reduce
  * entropy.
  */
 static inline void
@@ -739,7 +733,7 @@ swim_new_round(struct swim *swim)
 /**
  * Encode anti-entropy header and random members data as many as
  * possible to the end of the packet.
- * @retval Number of key-value pairs added to the packet's root map.
+ * @retval Number of key-values added to the packet's root map.
  */
 static int
 swim_encode_anti_entropy(struct swim *swim, struct swim_packet *packet)
