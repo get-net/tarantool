@@ -1457,11 +1457,6 @@ struct sql {
 		double notUsed1;	/* Spacer */
 	} u1;
 	Lookaside lookaside;	/* Lookaside malloc configuration */
-#ifndef SQL_OMIT_PROGRESS_CALLBACK
-	int (*xProgress) (void *);	/* The progress callback */
-	void *pProgressArg;	/* Argument to the progress callback */
-	unsigned nProgressOps;	/* Number of opcodes for progress callback */
-#endif
 	Hash aFunc;		/* Hash table of connection functions */
 	int *pnBytesFreed;	/* If not NULL, increment this in DbFree() */
 };
