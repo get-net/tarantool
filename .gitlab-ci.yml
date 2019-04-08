@@ -1,0 +1,19 @@
+image: packpack/packpack:debian-stretch
+
+test_release:
+  tags:
+    - tarantool
+  script:
+    - make -f .travis.mk test_ubuntu
+
+test_debug:
+  tags:
+    - docker
+  script:
+    - make -f .travis.mk coverage_ubuntu
+
+#test_osx_release:
+#  tags:
+#    - osx
+#  script:
+#    - make -f .travis.mk test_osx
