@@ -8,7 +8,7 @@ test_release:
 
 test_debug:
   tags:
-    - docker
+    - tarantool
   script:
     - make -f .travis.mk coverage_ubuntu
 
